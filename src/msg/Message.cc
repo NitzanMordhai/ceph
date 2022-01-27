@@ -499,6 +499,7 @@ Message *decode_message(CephContext *cct,
     m = make_message<MOSDFailure>();
     break;
   case MSG_OSD_MARK_ME_DOWN:
+  case MSG_OSD_MARK_ME_DOWN_AND_DEAD:
     m = make_message<MOSDMarkMeDown>();
     break;
   case MSG_OSD_MARK_ME_DEAD:

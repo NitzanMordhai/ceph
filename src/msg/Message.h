@@ -80,6 +80,7 @@
 #define MSG_OSD_MARK_ME_DOWN 74
 #define MSG_OSD_FULL         75
 #define MSG_OSD_MARK_ME_DEAD 123
+#define MSG_OSD_MARK_ME_DOWN_AND_DEAD 124
 
 // removed right after luminous
 //#define MSG_OSD_SUBOP        76

@@ -2734,6 +2734,7 @@ bool OSDMonitor::preprocess_query(MonOpRequestRef op)
 
     // damp updates
   case MSG_OSD_MARK_ME_DOWN:
+  case MSG_OSD_MARK_ME_DOWN_AND_DEAD:
     return preprocess_mark_me_down(op);
   case MSG_OSD_MARK_ME_DEAD:
     return preprocess_mark_me_dead(op);
@@ -2779,6 +2780,8 @@ bool OSDMonitor::prepare_update(MonOpRequestRef op)
     // damp updates
   case MSG_OSD_MARK_ME_DOWN:
     return prepare_mark_me_down(op);
+  case MSG_OSD_MARK_ME_DOWN_AND_DEAD:
+    return prepare_mark_me_down_and_dead(op);
   case MSG_OSD_MARK_ME_DEAD:
     return prepare_mark_me_dead(op);
   case MSG_OSD_FULL:
@@ -3060,6 +3063,27 @@ bool OSDMonitor::prepare_mark_me_down(MonOpRequestRef op)
 
   mon.clog->info() << "osd." << target_osd << " marked itself down";
   pending_inc.new_state[target_osd] = CEPH_OSD_UP;
+  if (m->request_ack)
+    wait_for_finished_proposal(op, new C_AckMarkedDown(this, op));
+  return true;
+}
+
+bool OSDMonitor::prepare_mark_me_down_and_dead(MonOpRequestRef op)
+{
+  op->mark_osdmon_event(__func__);
+  auto m = op->get_req<MOSDMarkMeDown>();
+  int target_osd = m->target_osd;
+
+  ceph_assert(osdmap.is_up(target_osd));
+  ceph_assert(osdmap.get_addrs(target_osd) == m->target_addrs);
+
+  mon.clog->info() << "osd." << target_osd << " marked itself down and dead as of e"
+                    << m->get_epoch();
+  pending_inc.new_state[target_osd] = CEPH_OSD_UP;
+  if (!pending_inc.new_xinfo.count(target_osd)) {
+    pending_inc.new_xinfo[target_osd] = osdmap.osd_xinfo[target_osd];
+  }
+  pending_inc.new_xinfo[target_osd].dead_epoch = m->get_epoch();
   if (m->request_ack)
     wait_for_finished_proposal(op, new C_AckMarkedDown(this, op));
   return true;

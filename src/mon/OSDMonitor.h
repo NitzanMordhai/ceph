@@ -430,6 +430,7 @@ private:
   bool preprocess_failure(MonOpRequestRef op);
   bool prepare_failure(MonOpRequestRef op);
   bool prepare_mark_me_down(MonOpRequestRef op);
+  bool prepare_mark_me_down_and_dead(MonOpRequestRef op);
   void process_failures();
   void take_all_failures(std::list<MonOpRequestRef>& ls);
 

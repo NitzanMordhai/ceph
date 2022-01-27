@@ -1299,20 +1299,35 @@ bool OSDService::prepare_to_stop()
 
   OSDMapRef osdmap = get_osdmap();
   if (osdmap && osdmap->is_up(whoami)) {
-    dout(0) << __func__ << " telling mon we are shutting down" << dendl;
     set_state(PREPARING_TO_STOP);
-    monc->send_mon_message(
-      new MOSDMarkMeDown(
-	monc->get_fsid(),
-	whoami,
-	osdmap->get_addrs(whoami),
-	osdmap->get_epoch(),
-	true  // request ack
+    if (cct->_conf->osd_fast_shutdown && 
+        cct->_conf->osd_fast_shutdown_notify_mon) {
+	dout(0) << __func__ << " telling mon we are shutting down and dead " << dendl;
+	monc->send_mon_message(
+	  new MOSDMarkMeDown(
+		monc->get_fsid(),
+		whoami,
+		osdmap->get_addrs(whoami),
+		osdmap->get_epoch(),
+		true,  // request ack
+		true   // mark as down and dead
+		));
+      } else {
+	dout(0) << __func__ << " telling mon we are shutting down" << dendl;
+	monc->send_mon_message(
+	  new MOSDMarkMeDown(
+		monc->get_fsid(),
+		whoami,
+		osdmap->get_addrs(whoami),
+		osdmap->get_epoch(),
+		true  // request ack
 	));
+      }
     const auto timeout = ceph::make_timespan(cct->_conf->osd_mon_shutdown_timeout);
     is_stopping_cond.wait_for(l, timeout,
       [this] { return get_state() == STOPPING; });
   }
+
   dout(0) << __func__ << " starting shutdown" << dendl;
   set_state(STOPPING);
   return true;

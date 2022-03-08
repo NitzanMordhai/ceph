@@ -794,7 +794,7 @@ $DAEMONOPTS
         osd class dir = $OBJCLASS_PATH
         osd class load list = *
         osd class default list = *
-        osd fast shutdown = false
+        osd fast shutdown = true
 
         filestore wbthrottle xfs ios start flusher = 10
         filestore wbthrottle xfs ios hard limit = 20
@@ -1408,6 +1408,8 @@ osd_scrub_load_threshold = 2000
 osd_debug_op_order = true
 osd_debug_misdirected_ops = true
 osd_copyfrom_max_chunk = 524288
+osd fast shutdown = true
+osd fast shutdown notify mon= true
 
 [mds]
 mds_debug_frag = true

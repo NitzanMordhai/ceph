@@ -131,10 +131,8 @@ void PGLog::IndexedLog::trim(
     }
   }
 
-  while (!dups.empty()) {
+  while (dups.size() > cct->_conf->osd_pg_log_dups_tracked) {
     const auto& e = *dups.begin();
-    if (e.version.version >= earliest_dup_version)
-      break;
     lgeneric_subdout(cct, osd, 20) << "trim dup " << e << dendl;
     if (trimmed_dups)
       trimmed_dups->insert(e.get_key_name());
@@ -627,7 +625,7 @@ void PGLog::write_log_and_missing(
 	     << ", clear_divergent_priors: " << clear_divergent_priors
 	     << dendl;
     _write_log_and_missing(
-      t, km, log, coll, log_oid,
+      cct, t, km, log, coll, log_oid,
       dirty_to,
       dirty_from,
       writeout_from,
@@ -667,6 +665,7 @@ void PGLog::write_log_and_missing_wo_missing(
 
 // static
 void PGLog::write_log_and_missing(
+    CephContext* cct,
     ObjectStore::Transaction& t,
     map<string,bufferlist> *km,
     pg_log_t &log,
@@ -677,7 +676,7 @@ void PGLog::write_log_and_missing(
     bool *may_include_deletes_in_missing_dirty)
 {
   _write_log_and_missing(
-    t, km, log, coll, log_oid,
+    cct, t, km, log, coll, log_oid,
     eversion_t::max(),
     eversion_t(),
     eversion_t(),
@@ -808,6 +807,7 @@ void PGLog::_write_log_and_missing_wo_missing(
 
 // static
 void PGLog::_write_log_and_missing(
+  CephContext* cct,
   ObjectStore::Transaction& t,
   map<string,bufferlist>* km,
   pg_log_t &log,
@@ -950,8 +950,12 @@ void PGLog::_write_log_and_missing(
       (*km)["rollback_info_trimmed_to"]);
   }
 
-  if (!to_remove.empty())
-    t.omap_rmkeys(coll, log_oid, to_remove);
+  if (!to_remove.empty()) {
+    if (to_remove.size() > cct->_conf->osd_pg_log_trim_compact_threshold) {
+      cct->_conf.set_val("osd_compact_on_start", "true");
+    }
+    t.omap_rmkeys(coll, log_oid, to_remove); 
+  }
 }
 
 void PGLog::rebuild_missing_set_with_deletes(

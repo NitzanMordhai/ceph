@@ -1337,6 +1337,7 @@ public:
     bool require_rollback);
 
   static void write_log_and_missing(
+    CephContext* cct,
     ObjectStore::Transaction& t,
     std::map<std::string,ceph::buffer::list>* km,
     pg_log_t &log,
@@ -1365,6 +1366,7 @@ public:
     );
 
   static void _write_log_and_missing(
+    CephContext* cct,
     ObjectStore::Transaction& t,
     std::map<std::string,ceph::buffer::list>* km,
     pg_log_t &log,
@@ -1395,17 +1397,19 @@ public:
     bool debug_verify_stored_missing = false
     ) {
     return read_log_and_missing(
-      store, ch, pgmeta_oid, info,
+      cct, store, ch, pgmeta_oid, info,
       log, missing, oss,
       tolerate_divergent_missing_log,
       &clear_divergent_priors,
       this,
+      &trimmed_dups,
       (pg_log_debug ? &log_keys_debug : nullptr),
       debug_verify_stored_missing);
   }
 
   template <typename missing_type>
   static void read_log_and_missing(
+    CephContext *cct,
     ObjectStore *store,
     ObjectStore::CollectionHandle &ch,
     ghobject_t pgmeta_oid,
@@ -1416,6 +1420,7 @@ public:
     bool tolerate_divergent_missing_log,
     bool *clear_divergent_priors = nullptr,
     const DoutPrefixProvider *dpp = nullptr,
+    std::set<std::string> *trimmed_dups = nullptr,
     std::set<std::string> *log_keys_debug = nullptr,
     bool debug_verify_stored_missing = false
     ) {
@@ -1475,6 +1480,12 @@ public:
 	    ceph_assert(dups.back().version < dup.version);
 	  }
 	  dups.push_back(dup);
+	  if (dups.size() >= cct->_conf->osd_pg_log_dups_tracked) {
+            if (trimmed_dups) {
+              trimmed_dups->insert(dups.front().get_key_name());
+            }
+	    dups.pop_front();
+	  }
 	} else {
 	  pg_log_entry_t e;
 	  e.decode_with_checksum(bp);

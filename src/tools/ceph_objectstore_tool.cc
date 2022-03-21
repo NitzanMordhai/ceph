@@ -449,7 +449,7 @@ int get_log(ObjectStore *fs, __u8 struct_ver,
     ostringstream oss;
     ceph_assert(struct_ver > 0);
     PGLog::read_log_and_missing(
-      fs, ch,
+      g_ceph_context, fs, ch,
       pgid.make_pgmeta_oid(),
       info, log, missing,
       oss,
@@ -626,7 +626,7 @@ int write_pg(ObjectStore::Transaction &t, epoch_t epoch, pg_info_t &info,
     pg_missing_tracker_t tmissing(missing);
     bool rebuilt_missing_set_with_deletes = missing.may_include_deletes;
     PGLog::write_log_and_missing(
-      t, &km, log, coll, info.pgid.make_pgmeta_oid(), tmissing,
+      g_ceph_context, t, &km, log, coll, info.pgid.make_pgmeta_oid(), tmissing,
       require_rollback,
       &rebuilt_missing_set_with_deletes);
   }

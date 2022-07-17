@@ -502,10 +502,11 @@ TEST(ClsLock, TestExclusiveEphemeralBasic) {
   ASSERT_EQ(0, l1.lock_exclusive_ephemeral(&ioctx, oid1));
   ASSERT_EQ(0, ioctx.stat(oid1, &size, &mod_time));
   sleep(2);
+  bool r1_expired = lock_expired(&ioctx, oid1, lock_name1);
   int r1 = l1.unlock(&ioctx, oid1);
-  EXPECT_TRUE(r1 == 0 || ((r1 == -ENOENT) && (lock_expired(&ioctx, oid1, lock_name1))))
+  EXPECT_TRUE(r1 == 0 || ((r1 == -ENOENT) && (r1_expired)))
     << "unlock should return 0 or -ENOENT return: " << r1;
-  ASSERT_EQ(-ENOENT, ioctx.stat(oid1, &size, &mod_time));
+  ASSERT_EQ((((r1 == -ENOENT) && (r1_expired)) ? 0 : -ENOENT), ioctx.stat(oid1, &size, &mod_time));
 
   // ***********************************************
 
@@ -516,10 +517,11 @@ TEST(ClsLock, TestExclusiveEphemeralBasic) {
   ASSERT_EQ(0, l2.lock_exclusive(&ioctx, oid2));
   ASSERT_EQ(0, ioctx.stat(oid2, &size, &mod_time));
   sleep(2);
+  bool r2_expired = lock_expired(&ioctx, oid1, lock_name1);
   int r2 = l2.unlock(&ioctx, oid2);
-  EXPECT_TRUE(r2 == 0 || ((r2 == -ENOENT) && (lock_expired(&ioctx, oid2, lock_name2))))
+  EXPECT_TRUE(r2 == 0 || ((r2 == -ENOENT) && (r2_expired)))
     << "unlock should return 0 or -ENOENT return: " << r2;
-  ASSERT_EQ(0, ioctx.stat(oid2, &size, &mod_time));
+  ASSERT_EQ((((r2 == -ENOENT) && (r2_expired)) ? -ENOENT : 0), ioctx.stat(oid2, &size, &mod_time));
 
   ASSERT_EQ(0, destroy_one_pool_pp(pool_name, cluster));
 }

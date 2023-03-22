@@ -5,6 +5,7 @@ meta:
 
 tasks:
 - cbt:
+    force-branch: wip-force-builtin-pool
     benchmarks:
       radosbench:
         concurrent_ops: 4

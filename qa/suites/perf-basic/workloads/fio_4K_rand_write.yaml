@@ -5,6 +5,7 @@ meta:
 
 tasks:
 - cbt:
+    force-branch: wip-force-builtin-pool
     benchmarks:
       librbdfio:
         op_size: [4096]

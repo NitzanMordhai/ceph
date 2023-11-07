@@ -1,0 +1,4 @@
+overrides:
+  tasks:
+    deduplication:
+      fingerprint_algorithm: 'sha256'

@@ -15,6 +15,8 @@ tasks:
       - \(OBJECT_
       - \(OSDMAP_FLAGS\)
       - \(POOL_APP_NOT_ENABLED\)
+    valgrind:
+      exit_on_first_error: false
 - exec:
     mon.a:
       - ceph restful create-key admin

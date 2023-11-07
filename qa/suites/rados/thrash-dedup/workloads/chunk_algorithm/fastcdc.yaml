@@ -1,0 +1,4 @@
+overrides:
+  tasks:
+    deduplication:
+      chunk_algorithm: 'fastcdc'

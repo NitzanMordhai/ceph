@@ -1,0 +1,39 @@
+overrides:
+  ceph:
+    log-ignorelist:
+      - \(POOL_APP_NOT_ENABLED\)
+tasks:
+  - exec:
+      client.0:
+        - sudo ceph osd pool create base 16
+        - sudo ceph osd pool create low_tier 4
+  - rados:
+    clients: [client.0]
+    ops: 40000
+    objects: 50
+    pool: base
+    write_append_excl: false
+    op_weights:
+      read: 100
+      write: 0
+      append: 100
+      delete: 50
+      snap_create: 50
+      snap_remove: 50
+      rollback: 50
+      copy_from: 50
+      setattr: 25
+      rmattr: 25
+  - deduplication:
+      clients: [client.0]
+      op: 'sample-dedup'
+      pool: base
+      chunk_pool: 'low_tier'
+      chunk_size: 8192
+      chunk_dedup_threshold: 5
+      max_thread: 10
+      sampling_ratio: 100
+      wait_op_finish: False
+      wait_op_finish_timeout: 9000
+      loop: true
+

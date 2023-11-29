@@ -642,11 +642,21 @@
 }
 
 {
-  ignore *all* ceph-mgr python crap.  this is overkill, but better than nothing
-  Memcheck:Leak
-  match-leak-kinds: all
+  ReallocSizeZero
+  Memcheck:Free
   ...
-  fun:Py*
+  fun:Mgr::init
+  fun:UnknownInlinedFun
+  fun:LambdaContext<Mgr::background_init(Context*)::{lambda(int)#1}>::finish(int) [clone .lto_priv.0]
+  fun:Context::complete
+  fun:Finisher::finisher_thread_entry
+  fun:start_thread
+  fun:clone
+  ...
+  obj:/usr/lib64/libcephsqlite.so
+  fun:cephsqlite_setcct
+  ...
+  fun:Mgr::init
   ...
 }
 

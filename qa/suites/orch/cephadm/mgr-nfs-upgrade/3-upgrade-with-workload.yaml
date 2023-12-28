@@ -16,7 +16,22 @@ upgrade-tasks:
   - cephadm.shell:
       env: [sha1]
       host.a:
-        - while ceph orch upgrade status | jq '.in_progress' | grep true && ! ceph orch upgrade status | jq '.message' | grep Error ; do ceph orch ps ; ceph versions ; ceph orch upgrade status ; ceph health detail ; sleep 30 ; done
+        - retry_count=5
+          while [ $retry_count -gt 0 ]; do
+            upgrade_status=$(ceph orch upgrade status | jq '.in_progress')
+            error_message=$(ceph orch upgrade status | jq '.message')
+
+            if [ "$upgrade_status" = "true" ] && ! echo "$error_message" | grep -q Error; then
+              ceph orch ps
+              ceph versions
+              ceph orch upgrade status
+              ceph health detail
+              sleep 30
+              ((retry_count--))
+            else
+              break
+            fi
+          done
         - ceph orch ps
         - ceph versions
         - echo "wait for servicemap items w/ changing names to refresh"

@@ -1,7 +1,7 @@
 tasks:
 - rados:
     clients: [client.0]
-    ops: 4000
+    ops: 4000000
     objects: 50
     ec_pool: true
     write_append_excl: false
@@ -21,7 +21,7 @@ tasks:
       delete: 50
       snap_create: 50
       snap_remove: 50
-      rollback: 50
+      rollback: 100
       copy_from: 50
       setattr: 25
       rmattr: 25

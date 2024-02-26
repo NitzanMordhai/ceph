@@ -62,6 +62,7 @@ public:
 private:
   std::map<core_id_t, unsigned> core_to_num_pgs;
   std::map<spg_t, core_id_t> pg_to_core;
+  seastar::gate pg_map_gate;
 };
 
 /**

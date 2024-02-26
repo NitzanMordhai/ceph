@@ -25,34 +25,38 @@ seastar::future<core_id_t> PGShardMapping::get_or_create_pg_mapping(
     }
     return seastar::make_ready_future<core_id_t>(find_iter->second);
   } else {
-    return container().invoke_on(0,[pgid, core, FNAME]
+    return container().invoke_on(0,[this, pgid, core, FNAME]
       (auto &primary_mapping) {
-      auto [insert_iter, inserted] = primary_mapping.pg_to_core.emplace(pgid, core);
-      ceph_assert_always(inserted);
-      ceph_assert_always(primary_mapping.core_to_num_pgs.size() > 0);
-      std::map<core_id_t, unsigned>::iterator core_iter;
-      if (core == NULL_CORE) {
-        core_iter = std::min_element(
-          primary_mapping.core_to_num_pgs.begin(),
-          primary_mapping.core_to_num_pgs.end(),
-            [](const auto &left, const auto &right) {
-            return left.second < right.second;
-        });
-      } else {
-        core_iter = primary_mapping.core_to_num_pgs.find(core);
-      }
-      ceph_assert_always(primary_mapping.core_to_num_pgs.end() != core_iter);
-      insert_iter->second = core_iter->first;
-      core_iter->second++;
-      DEBUG("mapping pg {} to core: {} with num_pgs of: {}",
-            pgid, insert_iter->second, core_iter->second);
-      return primary_mapping.container().invoke_on_others(
-        [pgid = insert_iter->first, core = insert_iter->second, FNAME]
-        (auto &other_mapping) {
-        ceph_assert_always(core != NULL_CORE);
-        auto [insert_iter, inserted] = other_mapping.pg_to_core.emplace(pgid, core);
+      return with_gate(primary_mapping.pg_map_gate, [=, this, &primary_mapping] {
+        auto [insert_iter, inserted] = primary_mapping.pg_to_core.emplace(pgid, core);
         ceph_assert_always(inserted);
-        DEBUG("mapping pg {} to core: {}", pgid, core);
+        ceph_assert_always(primary_mapping.core_to_num_pgs.size() > 0);
+        std::map<core_id_t, unsigned>::iterator core_iter;
+        if (core == NULL_CORE) {
+                core_iter = std::min_element(
+                primary_mapping.core_to_num_pgs.begin(),
+                primary_mapping.core_to_num_pgs.end(),
+                [](const auto &left, const auto &right) {
+                return left.second < right.second;
+                });
+        } else {
+                core_iter = primary_mapping.core_to_num_pgs.find(core);
+        }
+        ceph_assert_always(primary_mapping.core_to_num_pgs.end() != core_iter);
+        insert_iter->second = core_iter->first;
+        core_iter->second++;
+        DEBUG("mapping pg {} to core: {} with num_pgs of: {}",
+                pgid, insert_iter->second, core_iter->second);
+        return primary_mapping.container().invoke_on_others(
+                [pgid = insert_iter->first, core = insert_iter->second, FNAME]
+                (auto &other_mapping) {
+                ceph_assert_always(core != NULL_CORE);
+                auto [insert_iter, inserted] = other_mapping.pg_to_core.emplace(pgid, core);
+                ceph_assert_always(inserted);
+                DEBUG("mapping pg {} to core: {}", pgid, core);
+        });
+     }).finally([&primary_mapping] {
+        return primary_mapping.pg_map_gate.close();
       });
     }).then([this, pgid, FNAME] {
       auto find_iter = pg_to_core.find(pgid);

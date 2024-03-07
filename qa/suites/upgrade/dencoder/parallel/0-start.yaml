@@ -1,0 +1,24 @@
+roles:
+- - mon.a
+  - mgr.x
+  - osd.0
+  - client.0
+- - mon.b
+  - osd.1
+  - client.1
+- - mon.c
+  - osd.2
+  - client.2
+- - mon.d
+  - osd.3
+  - client.3
+openstack:
+- volumes: # attached to each instance
+    count: 4
+    size: 10 # GB
+overrides:
+  ceph:
+    create_rbd_pool: true
+    conf:
+      osd:
+        osd shutdown pgref assert: true

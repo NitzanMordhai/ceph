@@ -1,0 +1,15 @@
+# renamed tasks: to upgrade-sequence:
+upgrade-sequence:
+   sequential:
+   - print: "**** done start upgrade, wait"
+   - cephadm.shell:
+       env: [sha1]
+       mon.a:
+         - ceph config set global log_to_journald false --force
+         - ceph orch upgrade start --image quay.ceph.io/ceph-ci/ceph:v15 --daemon-types osd --host osd.0
+         - ceph orch upgrade start --image quay.ceph.io/ceph-ci/ceph:v16 --daemon-types osd --host osd.1
+         - ceph orch upgrade start --image quay.ceph.io/ceph-ci/ceph:v17 --daemon-types osd --host osd.2
+         - ceph orch upgrade start --image quay.ceph.io/ceph-ci/ceph:v18 --daemon-types osd --host osd.3
+         - while ceph orch upgrade status | jq '.in_progress' | grep true ; do ceph orch ps ; ceph versions ; sleep 30 ; done
+   - print: "**** done end upgrade, wait..."
+

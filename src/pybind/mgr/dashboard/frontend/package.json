@@ -46,7 +46,7 @@
   "dependencies": {
     "@angular/animations": "15.2.9",
     "@angular/common": "15.2.9",
-    "@angular/compiler": "15.2.9",
+    "@angular/compiler": "17.3.5",
     "@angular/core": "15.2.9",
     "@angular/forms": "15.2.9",
     "@angular/localize": "15.2.9",

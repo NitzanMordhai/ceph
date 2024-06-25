@@ -46,11 +46,15 @@ def process_type(file_path, type):
         output2 = result2.stdout.decode('unicode_escape')
 
         if result1.returncode != 0 or result2.returncode != 0:
+            cmd3 = [CEPH_DENCODER, "list_types"]
+            result3 = subprocess.run(cmd3, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            output3 = result3.stdout.decode('unicode_escape')
             debug_print(f"**** reencode of {file_path} resulted in wrong return code ****")
+            print(f"ceph dencodert type {type} check: {result3} output {output3}")
             print(f"Error encountered in subprocess. Command: {cmd1}")
-            print(f"Return code: {result1.returncode} Command:{result1.args} Output: {result1.stdout.decode('unicode_escape')}")
+            print(f"Return code: {result1.returncode} Command:{result1.args} Output: {result1}")
             print(f"Error encountered in subprocess. Command: {cmd2}")
-            print(f"Return code: {result2.returncode} Command:{result2.args} Output: {result2.stdout.decode('unicode_escape')}")
+            print(f"Return code: {result2.returncode} Command:{result2.args} Output: {result2}")
             
             with open(err_file_rc, "a") as f:
                 f.write(f"{type} -- {file_path}")
@@ -333,6 +337,8 @@ if __name__ == "__main__":
     CEPH_DENCODER = "ceph-dencoder"
     subprocess.run([CEPH_DENCODER, 'version'], check=True)
     current_ver = subprocess.check_output([CEPH_DENCODER, "version"]).decode().strip()
-    debug = False
+    test = subprocess.run([CEPH_DENCODER, 'type', 'cls_rgw_reshard_get_ret'], check=True, capture_output=True, text=True)
+    print("check type: {}".format(test))
+    debug = True
     ret = main()
     sys.exit(ret)

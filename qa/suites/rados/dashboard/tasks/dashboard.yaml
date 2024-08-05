@@ -9,7 +9,6 @@ overrides:
         osd mclock override recovery settings: true
       mgr:
         mon warn on pool no app: false
-
 tasks:
   - install:
   - ceph:
@@ -40,6 +39,11 @@ tasks:
         - evicting unresponsive client .+
         - MON_DOWN
   - rgw: [client.0]
+  - exec:
+      mon.a:
+        - ceph restful create-key admin
+        - ceph restful create-self-signed-cert
+        - ceph restful restart
   - cephfs_test_runner:
       fail_on_skip: false
       modules:

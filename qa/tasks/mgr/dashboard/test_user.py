@@ -32,6 +32,10 @@ class UserTest(DashboardTestCase):
         super(UserTest, cls).tearDownClass()
 
     @classmethod
+    def setUp(self):
+        self._assign_ports("dashboard", "ssl_server_port")
+
+    @classmethod
     def _create_user(cls, username=None, password=None, name=None, email=None, roles=None,
                      enabled=True, pwd_expiration_date=None, pwd_update_required=False):
         data = {}

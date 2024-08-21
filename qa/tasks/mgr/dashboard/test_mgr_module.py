@@ -33,6 +33,13 @@ class MgrModuleTestCase(DashboardTestCase):
 
 
 class MgrModuleTest(MgrModuleTestCase):
+    @classmethod
+    def setUp(self):
+        self._assign_ports("dashboard", "ssl_server_port")
+
+    #@classmethod
+    #def SetUpClass(cls):
+    #    super(MgrModuleTest, cls).SetUpClass()
 
     def test_list_disabled_module(self):
         self._ceph_cmd(['mgr', 'module', 'disable', 'iostat'])

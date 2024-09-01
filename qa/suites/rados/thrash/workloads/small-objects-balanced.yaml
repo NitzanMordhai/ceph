@@ -6,8 +6,8 @@ overrides:
 tasks:
 - rados:
     clients: [client.0]
-    ops: 400000
-    max_seconds: 600
+    ops: 4000000
+    max_seconds: 6000
     max_in_flight: 64
     objects: 1024
     size: 16384

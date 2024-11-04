@@ -241,9 +241,12 @@ class TestRados(object):
 class TestIoctx(object):
 
     def setup_method(self, method):
+        print("setup_method")
         self.rados = Rados(conffile='')
         self.rados.connect()
+        print("setup_method: connected")
         self.rados.create_pool('test_pool')
+        print("setup_method: pool created")
         assert self.rados.pool_exists('test_pool')
         self.ioctx = self.rados.open_ioctx('test_pool')
 
@@ -961,27 +964,32 @@ class TestIoctx(object):
     def test_aio_read_wait_for_complete(self):
         # use wait_for_complete() and wait for cb by
         # watching retval[0]
-
+        print("test_aio_read_wait_for_complete")
         # this is a list so that the local cb() can modify it
         payload = b"bar\000frob"
-        self.ioctx.write("foo", payload)
-        self._take_down_acting_set('test_pool', 'foo')
-
+        self.ioctx.write("foo_nitzan", payload)
+        print("wrote foo")
+        self._take_down_acting_set('test_pool', 'foo_nitzan')
+        print("took down acting set for foo")
         retval = [None]
         lock = threading.Condition()
         def cb(_, buf):
             with lock:
                 retval[0] = buf
+                print(f"cb: {buf}")
                 lock.notify()
 
-        comp = self.ioctx.aio_read("foo", len(payload), 0, cb)
+        comp = self.ioctx.aio_read("foo_nitzan", len(payload), 0, cb)
         eq(False, comp.is_complete())
+        print("sleeping 3 seconds")
         time.sleep(3)
         eq(False, comp.is_complete())
+        print("retval[0] is None")
         with lock:
             eq(None, retval[0])
-
+        print("letting osds back up")
         self._let_osds_back_up()
+        print("waiting for comp to complete")
         comp.wait_for_complete()
         loops = 0
         with lock:

@@ -14,7 +14,7 @@ overrides:
       - python3-pytest
 tasks:
 - workunit:
-    timeout: 1h
+    timeout: 10m
     clients:
       client.0:
-        - rados/test_python.sh -m 'not (tier or ec)'
+        - rados/test_python.sh -s -m 'not (tier or ec)'

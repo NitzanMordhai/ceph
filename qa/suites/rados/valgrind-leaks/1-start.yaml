@@ -20,10 +20,16 @@ overrides:
         osd max object namespace len: 64
       mon:
         mon osd crush smoke test: false
+        debug mon: 20
+        debug paxos: 20
+        debug auth: 20
+        debug ms: 30
+        debug rocksdb: 20
+        debug client: 20
       osd:
-        osd fast shutdown: false
+        osd fast shutdown: true
     valgrind:
-      mon: [--tool=memcheck, --leak-check=full, --show-reachable=yes]
+      mon: [--tool=memcheck]
       osd: [--tool=memcheck]
 roles:
 - [mon.a, mon.b, mon.c, mgr.x, mgr.y, osd.0, osd.1, osd.2, client.0]

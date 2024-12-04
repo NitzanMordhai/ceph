@@ -27,6 +27,8 @@ from tasks.cephfs.filesystem import MDSCluster, Filesystem
 from teuthology import misc as teuthology
 from teuthology import contextutil
 from teuthology import exceptions
+from teuthology.exceptions import (CommandCrashedError, CommandFailedError,
+                                   ConnectionLostError)
 from teuthology.orchestra import run
 from teuthology.util.scanner import ValgrindScanner
 from tasks import ceph_client as cclient
@@ -1514,7 +1516,19 @@ def run_daemon(ctx, config, type_):
     try:
         yield
     finally:
-        teuthology.stop_daemons_of_type(ctx, type_, cluster_name)
+        #teuthology.stop_daemons_of_type(ctx, type_, cluster_name, timeout=1200)
+        log.info('Shutting down %s daemons...' % type_)
+        exc = None
+        for daemon in ctx.daemons.iter_daemons_of_role(type_, cluster_name):
+            try:
+                daemon.stop(timeout=600)
+            except (CommandFailedError,
+                    CommandCrashedError,
+                    ConnectionLostError) as e:
+                exc = e
+                log.exception('Saw exception from %s.%s', daemon.role, daemon.id_)
+        if exc is not None:
+            raise exc
 
 
 def healthy(ctx, config):

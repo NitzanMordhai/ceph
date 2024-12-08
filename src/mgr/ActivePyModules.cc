@@ -71,7 +71,8 @@ ActivePyModules::ActivePyModules(
   cmd_finisher.start();
 }
 
-ActivePyModules::~ActivePyModules() = default;
+ActivePyModules::~ActivePyModules()
+{ py_module_registry.cleanup_perf_counters(); }
 
 void ActivePyModules::dump_server(const std::string &hostname,
                       const DaemonStateCollection &dmc,
@@ -537,7 +538,7 @@ void ActivePyModules::start_one(PyModuleRef py_module)
   pending_modules.insert(name);
   // Send all python calls down a Finisher to avoid blocking
   // C++ code, and avoid any potential lock cycles.
-  finisher.queue(new LambdaContext([this, active_module, name](int) {
+  finisher.queue(new LambdaContext([this, active_module, name, py_module](int) {
     int r = active_module->load(this);
     std::lock_guard l(lock);
     pending_modules.erase(name);
@@ -552,6 +553,7 @@ void ActivePyModules::start_one(PyModuleRef py_module)
       active_module->thread.create(active_module->get_thread_name());
       dout(4) << "Starting active module " << name <<" finisher thread "
         << active_module->get_fin_thread_name() << dendl;
+      py_module->perf_counter_build(g_ceph_context);
       active_module->finisher.start();
     }
   }));

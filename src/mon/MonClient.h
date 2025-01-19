@@ -42,7 +42,6 @@
 #include "auth/AuthClientHandler.h"
 
 class MMonMap;
-class MMonQuorum;
 class MConfig;
 class MMonGetVersionReply;
 class MMonCommandAck;
@@ -184,14 +183,13 @@ class AuxConnections {
 public:
   AuxConnections(std::shared_ptr<MonConnection> conn_)
     : conn(std::move(conn_))
-  { sub.want("quorum_change", 0, 0);}
+  { sub.want("monmap", 0, 0);}
 
   std::shared_ptr<MonConnection> get_con() {
     return conn;
   }
 
   void start_conn(epoch_t epoch, const EntityName& entity_name) {
-    sub.got("quorum", 0);
     conn->start(epoch, entity_name);
   }
 
@@ -497,7 +495,6 @@ private:
   bool ms_handle_refused(Connection *con) override { return false; }
 
   void handle_monmap(MMonMap *m);
-  void handle_mon_quorum(MMonQuorum *m);
   void handle_config(MConfig *m);
 
   void handle_auth(MAuthReply *m);

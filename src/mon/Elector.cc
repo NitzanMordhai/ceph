@@ -521,7 +521,6 @@ void Elector::ping_check(int peer)
   if (!acked_ping.is_zero() && acked_ping < now - timeout_adjusted) {
     dout(20) << __func__ << " peer " << peer << " didn't acked ping for "
       << ping_timeout << " seconds" << dendl;
-    mon->check_quorum_subs();
     peer_tracker.report_dead_connection(peer, now - acked_ping);
     acked_ping = now;
     begin_dead_ping(peer);

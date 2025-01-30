@@ -22,9 +22,12 @@ overrides:
         mon osd crush smoke test: false
       osd:
         osd fast shutdown: false
+      mgr:
+        valgrind execve exit: true
     valgrind:
       mon: [--tool=memcheck, --leak-check=full, --show-reachable=yes]
       osd: [--tool=memcheck]
+      mgr: [--tool=memcheck]
 roles:
 - [mon.a, mon.b, mon.c, mgr.x, mgr.y, osd.0, osd.1, osd.2, client.0]
 tasks:

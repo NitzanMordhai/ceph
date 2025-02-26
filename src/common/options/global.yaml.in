@@ -2321,7 +2321,7 @@ options:
 - name: mon_aux_list_connections
   type: uint
   level: advanced
-  default: 0
+  default: 3
   min: 0
   with_legacy: false
 - name: mon_client_target_rank

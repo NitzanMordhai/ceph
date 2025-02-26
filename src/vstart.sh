@@ -859,6 +859,7 @@ prepare_conf() {
         mon_max_pg_per_osd = ${MON_MAX_PG_PER_OSD:-1000}
         erasure code dir = $EC_PATH
         plugin dir = $CEPH_LIB
+        mon_aux_list_connections = 3
         run dir = $CEPH_OUT_DIR
         crash dir = $CEPH_OUT_DIR
         enable experimental unrecoverable data corrupting features = *
@@ -1747,6 +1748,7 @@ if [ $CEPH_NUM_MON -gt 0 ]; then
 [global]
 osd_pool_default_size = $OSD_POOL_DEFAULT_SIZE
 osd_pool_default_min_size = 1
+mon_aux_list_connections = 3
 
 [mon]
 mon_osd_reporter_subtree_level = osd

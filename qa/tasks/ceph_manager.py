@@ -111,13 +111,13 @@ def get_valgrind_args(testdir, name, preamble, v, exit_on_first_error=True, cd=T
             '--trace-children=no',
             '--child-silent-after-fork=yes',
             '--soname-synonyms=somalloc=*tcmalloc*',
-            '--num-callers=50',
+            '--num-callers=20',
             '--suppressions={tdir}/valgrind.supp'.format(tdir=testdir),
             '--gen-suppressions=all',
             '--xml=yes',
             '--xml-file={vdir}/{n}.log'.format(vdir=val_path, n=name),
             '--time-stamp=yes',
-            '--vgdb=yes',
+            '--vgdb=no',
         ]
     else:
         extra_args = [

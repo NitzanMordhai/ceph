@@ -1,5 +1,6 @@
 #include <iostream>
 
+#include "mgr/MgrMapCache.h"
 #include "gtest/gtest.h"
 #include "mgr/TTLCache.h"
 

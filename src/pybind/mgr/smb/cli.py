@@ -1,11 +1,13 @@
 from typing import Any, Callable, Tuple
 
+import contextlib
 import errno
 import functools
 
 import object_format
 from mgr_module import CLICommand
 
+from . import resourcelib
 from .proto import Self
 
 
@@ -66,3 +68,13 @@ class SMBCommand:
 class InvalidInputValue(object_format.ErrorResponseBase):
     def format_response(self) -> Tuple[int, str, str]:
         return -errno.EINVAL, "", str(self)
+
+
+@contextlib.contextmanager
+def error_wrapper() -> Iterator[None]:
+    """Context-decorator that converts between certain common exception types."""
+    try:
+        yield
+    except resourcelib.ResourceTypeError as err:
+        msg = f'failed to parse input: {err}'
+        raise InvalidInputValue(msg) from err

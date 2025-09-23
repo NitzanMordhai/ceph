@@ -10,9 +10,17 @@ ceph tell osd.* injectargs --osd_max_markdown_count 1024 --osd_max_markdown_peri
 ceph osd set noout
 
 wait_for_healthy() {
-  while ceph health | grep down
-  do
+  local timeout=360
+  local start=$(date +%s)
+  while ceph health | grep -q down; do
     sleep 1
+    local now=$(date +%s)
+    if (( now - start >= timeout )); then
+      echo "Cluster not healthy after $timeout sec, aborting OSDs..."
+      # abort all ceph-osd processes so they dump core
+      sudo killall -ABRT ceph-osd
+      break
+    fi
   done
 }
 

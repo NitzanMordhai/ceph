@@ -118,6 +118,7 @@ def get_valgrind_args(testdir, name, preamble, v, exit_on_first_error=True, cd=T
             '--xml-file={vdir}/{n}.log'.format(vdir=val_path, n=name),
             '--time-stamp=yes',
             '--vgdb=yes',
+            '--fair-sched=try',
         ]
     else:
         extra_args = [

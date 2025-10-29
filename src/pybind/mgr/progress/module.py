@@ -861,6 +861,21 @@ class Module(MgrModule):
             # that never finishes)
             return self._handle_clear()
         elif cmd['prefix'] == "progress json":
+            self.log.error('Preparing to send ServiceSpec through remote()')
+            
+            try:
+                from ceph.deployment.service_spec import ServiceSpec
+                test_spec = ServiceSpec('mgr')
+                self.log.error(f'Created spec: {test_spec.service_type}')
+
+                ret = self.remote('rbd_support', 'echo_servicespec', test_spec)
+                self.log.error(f'remote() succeeded: {ret}')
+
+            except Exception as e:
+                self.log.error(f'Exception caught: {e}')
+                import traceback
+                self.log.error(traceback.format_exc())
+
             return 0, json.dumps(self._json(), indent=4, sort_keys=True), ""
         elif cmd['prefix'] == "progress on":
             if self.enabled:

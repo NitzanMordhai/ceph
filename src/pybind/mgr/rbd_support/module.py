@@ -192,6 +192,39 @@ class Module(MgrModule):
             sort_by_name = sort_by.name if sort_by else OSD_PERF_QUERY_COUNTERS[0]
             return self.perf.get_perf_stats(pool_spec, sort_by_name)
 
+    @CLIReadCommand('rbd get_sams_special_string')
+    @with_latest_osdmap
+    def get_sams_special_string(self):
+        """
+        sam's special string
+        """
+        with self.perf.lock:
+            ret = SamsSpecialString("asdf")
+            if isinstance(ret, SamsSpecialString):
+                self.getLogger().error('type(ret) {} is instance of {}'.format(
+                    type(ret),
+                    SamsSpecialString
+                ))
+            else:
+                self.getLogger().error('type(ret) {} is not instance of {}'.format(
+                    type(ret),
+                    SamsSpecialString
+                ))
+            return ret
+
+    def echo_servicespec(self, spec):
+        self.log.error('rbd_support: type={}'.format(type(spec)))
+        
+        if hasattr(spec, 'service_type'):
+            self.log.error('  service_type: {}'.format(spec.service_type))
+            return {
+                'success': True,
+                'service_type': spec.service_type
+            }
+        else:
+            self.log.error('spec has no service_type attribute!')
+            return {'success': False, 'error': 'Invalid spec'}
+
     @CLIReadCommand('rbd perf image counters')
     @with_latest_osdmap
     def perf_image_counters(self,

@@ -10,6 +10,8 @@ tasks:
 # we may land on ext4
         osd max object name len: 400
         osd max object namespace len: 64
+        debug objecter: 20
+        debug osd: 20
     log-ignorelist:
       - but it is still running
       - overall HEALTH_

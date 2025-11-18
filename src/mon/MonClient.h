@@ -454,6 +454,10 @@ public:
     std::lock_guard l(monc_lock);
     _renew_subs();
   }
+  auto get_start(const std::string& what) {
+    std::lock_guard l(monc_lock);
+    return sub.get_start(what);
+  }
   bool sub_want(std::string what, version_t start, unsigned flags) {
     std::lock_guard l(monc_lock);
     return sub.want(what, start, flags);

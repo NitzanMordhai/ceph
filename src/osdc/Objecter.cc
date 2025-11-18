@@ -2069,7 +2069,7 @@ void Objecter::_maybe_request_map()
       << "_maybe_request_map subscribing (onetime) to next osd map" << dendl;
     flag = CEPH_SUBSCRIBE_ONETIME;
   }
-  epoch_t epoch = osdmap->get_epoch() ? osdmap->get_epoch()+1 : 0;
+  epoch_t epoch = osdmap->get_epoch() ? osdmap->get_epoch()+1 : 0;  
   if (monc->sub_want("osdmap", epoch, flag)) {
     monc->renew_subs();
   }
@@ -2247,10 +2247,11 @@ void Objecter::tick()
   if (num_homeless_ops || !toping.empty()) {
     _maybe_request_map();
   } else if (last_osdmap_request_time != ceph::coarse_mono_clock::time_point()) {
+    epoch_t epoch = osdmap->get_epoch() ? osdmap->get_epoch()+1 : 0;
     auto now = ceph::coarse_mono_clock::now();
     auto elapsed = now - last_osdmap_request_time;
     auto stale_window = ceph::make_timespan(cct->_conf->objecter_tick_interval) * 2;
-    if (elapsed > stale_window) {
+    if (elapsed > stale_window && epoch <= monc->get_start("osdmap")) {
       double elapsed_s = std::chrono::duration<double>(elapsed).count();
       double thresh_s  = std::chrono::duration<double>(stale_window).count();
       ldout(cct, 10) << __func__ << ": osdmap stale: " << elapsed_s 

@@ -19,6 +19,15 @@ public:
   auto get_subs() const {
     return sub_new;
   }
+  auto get_start(const std::string& what) const -> version_t {
+    if (auto i = sub_new.find(what); i != sub_new.end()) {
+      return i->second.start;
+    }
+    if (auto i = sub_sent.find(what); i != sub_sent.end()) {
+      return i->second.start;
+    }
+    return 0;
+  }
   bool need_renew() const;
   // change the status of "new" subscriptions to "sent"
   void renewed();

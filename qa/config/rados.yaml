@@ -12,3 +12,7 @@ overrides:
       mon:
         mon scrub interval: 300
         debug mon: 30
+      global:
+        debug client: 20
+        debug objecter: 20
+        debug monc: 20

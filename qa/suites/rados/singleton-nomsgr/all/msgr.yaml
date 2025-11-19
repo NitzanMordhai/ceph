@@ -21,3 +21,7 @@ overrides:
     conf:
       client:
         debug ms: 20
+      global:
+        debug client: 20
+        debug objecter: 20
+        debug monc: 20

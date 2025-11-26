@@ -27,7 +27,7 @@ class AioTestDataPP
 {
 public:
   AioTestDataPP()
-    : m_init(false),    
+    : m_init(false),
       m_oid("foo")
   {
   }
@@ -2367,36 +2367,37 @@ TEST(LibRadosAio, PoolEIOFlag) {
 
   bufferlist bl;
   bl.append("some data");
-  std::thread *t = nullptr;
+  std::unique_ptr<std::thread> t;
+  std::atomic<bool> missed_eio{false};
   
   unsigned max = 100;
   unsigned timeout = max * 10;
   unsigned long i = 1;
-  my_lock.lock();
   for (; min_failed == 0 && i <= timeout; ++i) {
     io_info *info = new io_info;
     info->i = i;
     info->c = Rados::aio_create_completion();
     info->c->set_complete_callback((void*)info, pool_io_callback);
-    inflight.insert(i);
-    my_lock.unlock();
     int r = test_data.m_ioctx.aio_write(test_data.m_oid, info->c, bl, bl.length(), 0);
-    //cout << "start " << i << " r = " << r << std::endl;
 
-    if (i == max / 2) {
-      cout << "setting pool EIO" << std::endl;
-      t = new std::thread(
-	[&] {
-	  bufferlist empty;
-	  ASSERT_EQ(0, test_data.m_cluster.mon_command(
-	    fmt::format(R"({{
-	                "prefix": "osd pool set",
-	                "pool": "{}",
-	                "var": "eio",
-	                "val": "true"
-	                }})", test_data.m_pool_name),
-	    empty, nullptr, nullptr));
-	});
+    // Trigger EIO after 100 ops have been submitted
+    if (i == 100) {
+      t = std::make_unique<std::thread>([&] {
+        cout << "sending pool EIO time: " << ceph_clock_now() << std::endl;
+        ASSERT_EQ(0, test_data.m_cluster.mon_command(
+          fmt::format(R"({{
+            "prefix": "osd pool set",
+            "pool": "{}",
+            "var": "eio",
+            "val": "true"
+            }})", test_data.m_pool_name),
+          {}, nullptr, nullptr));
+
+        {
+          std::scoped_lock lk(my_lock);
+          missed_eio = (!min_failed && max_success == max);
+        }
+      });
     }
 
     std::this_thread::sleep_for(10ms);
@@ -2406,8 +2407,9 @@ TEST(LibRadosAio, PoolEIOFlag) {
       break;
     }
   }
-  t->join();
-  delete t;
+  if (t && t->joinable()) {
+    t->join();
+  }
 
   // wait for ios to finish
   for (; !inflight.empty(); ++i) {
@@ -2418,8 +2420,8 @@ TEST(LibRadosAio, PoolEIOFlag) {
   }
 
   cout << "max_success " << max_success << ", min_failed " << min_failed << std::endl;
+  ASSERT_TRUE(min_failed > 0) << "Did not catch any EIO errors";
   ASSERT_TRUE(max_success + 1 == min_failed);
-  my_lock.unlock();
 }
 
 // This test case reproduces https://tracker.ceph.com/issues/57152

@@ -210,9 +210,9 @@ class HealthHistory:
 
     def __init__(self, mgr: MgrModule):
         self.mgr = mgr
-        self.lock = threading.Lock()
+        self.lock = threading.RLock()
         self.max_entries = cast(int, self.mgr.get_localized_module_option('healthcheck_history_max_entries', 1000))
-        self.healthcheck: LRUCacheDict[str, HealthCheckEvent] = LRUCacheDict(maxsize=self.max_entries)
+        self.healthcheck: ThreadSafeLRUCacheDict[str, HealthCheckEvent] = ThreadSafeLRUCacheDict(maxsize=self.max_entries)
         self._load()
 
     def _load(self) -> None:
@@ -294,6 +294,7 @@ class HealthHistory:
 
             if changes_made:
                 self.save()
+            self.mgr.log.debug("check(): DONE")
 
     def __str__(self) -> str:
         """Print the healthcheck history.
@@ -356,6 +357,42 @@ class HealthHistory:
         """
         return yaml.safe_dump(self.as_dict(), explicit_start=True, default_flow_style=False)
 
+
+class ThreadSafeLRUCacheDict(LRUCacheDict[K, V], Generic[K, V]):
+    maxsize: int
+
+    def __init__(self, maxsize: int, *args, **kwargs):
+        self.maxsize = maxsize
+        self._lock = threading.RLock()
+        super().__init__(maxsize, *args, **kwargs)
+
+    def __setitem__(self, key: K, value: V) -> None:
+        with self._lock:
+            super().__setitem__(key, value)
+    def __getitem__(self, key) -> V:
+        with self._lock:
+            return super().__getitem__(key)
+    def __iter__(self):
+        with self._lock:
+            return iter(list(super().keys()))
+    def __contains__(self, key: K) -> bool:
+        with self._lock:
+            return super().__contains__(key)
+    def __len__(self) -> int:
+        with self._lock:
+            return super().__len__()
+    def reset(self) -> None:
+        with self._lock:
+            super().clear()
+    def save(self) -> None:
+        with self._lock:
+            super().clear()
+    def clear(self) -> None:
+        with self._lock:
+            super().clear()
+    def keys(self):
+        with self._lock:
+            return list(super().keys())
 
 class Metric(object):
     def __init__(self, mtype: str, name: str, desc: str, labels: Optional[LabelValues] = None) -> None:
@@ -1026,13 +1063,14 @@ class Module(MgrModule, OrchestratorClientMixin):
                     self.metrics[path].set(0)
 
         self.health_history.check(health)
-        for name, info in self.health_history.healthcheck.items():
-            v = 1 if info.active else 0
-            self.metrics['health_detail'].set(
-                v, (
-                    name,
-                    str(info.severity))
-            )
+        with self.health_history.lock:
+            for name, info in self.health_history.healthcheck.items():
+                v = 1 if info.active else 0
+                self.metrics['health_detail'].set(
+                    v, (
+                        name,
+                        str(info.severity))
+                )
 
     @profile_method()
     def get_pool_stats(self) -> None:

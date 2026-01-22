@@ -13,6 +13,7 @@ from typing import cast, Any, Callable, Optional, Tuple, TypeVar
 
 from .cli import RBDSupportCLICommand
 
+from ceph.deployment.service_spec import NvmeofServiceSpec, PlacementSpec
 from mgr_module import MgrModule, Option
 from threading import Thread, Event
 
@@ -194,6 +195,21 @@ class Module(MgrModule):
         with self.perf.lock:
             sort_by_name = sort_by.name if sort_by else OSD_PERF_QUERY_COUNTERS[0]
             return self.perf.get_perf_stats(pool_spec, sort_by_name)
+
+    @RBDSupportCLICommand.Read('rbd test_intermodule_call')
+    @with_latest_osdmap
+    def test_intermodule_call(self) -> NvmeofServiceSpec:
+        with self.perf.lock:
+            pool = "3"
+            group = "4"
+            placement = "asdf"
+            ret = NvmeofServiceSpec(
+                service_id=f'{pool}.{group}' if group else pool,
+                pool=pool,
+                group=group,
+                placement=PlacementSpec.from_string(placement),
+            )
+            return ret
 
     @RBDSupportCLICommand.Read('rbd perf image counters')
     @with_latest_osdmap

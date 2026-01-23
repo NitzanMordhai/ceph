@@ -11,7 +11,6 @@ from distutils.ccompiler import new_compiler
 from itertools import filterfalse, takewhile
 
 import os
-import platform
 import shutil
 import sys
 import tempfile
@@ -139,11 +138,11 @@ def check_sanity():
 
 
 if 'BUILD_DOC' in os.environ or 'READTHEDOCS' in os.environ:
-    ext_args = dict(extra_compile_args=['-DBUILD_DOC'])
-    cython_constants = dict(BUILD_DOC=True, UNAME_SYSNAME=platform.system())
+    ext_args = {}
+    cython_constants = dict(BUILD_DOC=True)
 elif check_sanity():
     ext_args = get_python_flags(['rados'])
-    cython_constants = dict(BUILD_DOC=False, UNAME_SYSNAME=platform.system())
+    cython_constants = dict(BUILD_DOC=False)
 else:
     sys.exit(1)
 
@@ -151,7 +150,6 @@ cmdclass = {}
 try:
     from Cython.Build import cythonize
     from Cython.Distutils import build_ext
-    from Cython import Tempita
 
     cmdclass = {'build_ext': build_ext}
 except ImportError:
@@ -166,27 +164,7 @@ except ImportError:
 
         source = "rados.c"
 else:
-    # Process Tempita template
-    source_pyx = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)),
-        "rados.pyx"
-    )
-
-    # Read the template from source
-    with open(source_pyx) as f:
-        template_content = f.read()
-
-    # Process the template with cython_constants
-    processed = Tempita.sub(template_content, **cython_constants)
-
-    # Write processed output to current working directory
-    # (which is the build directory when invoked by CMake)
-    output_pyx = "rados_processed.pyx"
-
-    with open(output_pyx, 'w') as f:
-        f.write(processed)
-
-    source = output_pyx
+    source = "rados.pyx"
 
 # Disable cythonification if we're not really building anything
 if (len(sys.argv) >= 2 and

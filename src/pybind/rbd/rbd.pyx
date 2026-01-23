@@ -34,12 +34,11 @@ import errno
 from itertools import chain
 import time
 
-{{if BUILD_DOC}}
-include "mock_rbd.pxi"
-{{else}}
-from c_rbd cimport *
-cimport rados
-{{endif}}
+IF BUILD_DOC:
+    include "mock_rbd.pxi"
+ELSE:
+    from c_rbd cimport *
+    cimport rados
 
 
 cdef extern from "Python.h":
@@ -374,19 +373,18 @@ cdef make_ex(ret, msg, exception_map=errno_to_exception):
         return OSError(msg, errno=ret)
 
 
-{{if BUILD_DOC}}
-cdef rados_t convert_rados(rados) nogil:
-    return <rados_t>0
+IF BUILD_DOC:
+    cdef rados_t convert_rados(rados) nogil:
+        return <rados_t>0
 
-cdef rados_ioctx_t convert_ioctx(ioctx) nogil:
-    return <rados_ioctx_t>0
-{{else}}
-cdef rados_t convert_rados(rados.Rados rados) except? NULL:
-    return <rados_t>rados.cluster
+    cdef rados_ioctx_t convert_ioctx(ioctx) nogil:
+        return <rados_ioctx_t>0
+ELSE:
+    cdef rados_t convert_rados(rados.Rados rados) except? NULL:
+        return <rados_t>rados.cluster
 
-cdef rados_ioctx_t convert_ioctx(rados.Ioctx ioctx) except? NULL:
-    return <rados_ioctx_t>ioctx.io
-{{endif}}
+    cdef rados_ioctx_t convert_ioctx(rados.Ioctx ioctx) except? NULL:
+        return <rados_ioctx_t>ioctx.io
 
 cdef int progress_callback(uint64_t offset, uint64_t total, void* ptr) with gil:
     return (<object>ptr)(offset, total)

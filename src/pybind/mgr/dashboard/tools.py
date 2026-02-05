@@ -12,6 +12,7 @@ from datetime import datetime, timedelta, timezone
 
 import cherrypy
 from ceph.utils import strtobool
+from cherrypy_mgr import CherryPyMgr
 from mgr_util import build_url
 
 from . import mgr
@@ -850,11 +851,20 @@ def configure_cors(url: str = ''):
     else:
         cross_origin_url = mgr.get_localized_module_option('cross_origin_url', '')
     if cross_origin_url:
-        cherrypy.tools.CORS = cherrypy.Tool('before_handler', cors_tool)
-        config = {
-            'tools.CORS.on': True,
-        }
-        cherrypy.config.update(config)
+        if not hasattr(cherrypy.tools, 'CORS'):
+            cherrypy.tools.CORS = cherrypy.Tool('before_handler', cors_tool)
+
+        url_prefix = prepare_url_prefix(mgr.get_module_option('url_prefix', default=''))
+        config = CherryPyMgr.get_server_config(
+            name='ceph-dashboard',
+            mount_point=url_prefix
+        )
+        if config is None:
+            return
+
+        if '/' not in config or config['/'] is None:
+            config['/'] = {}
+        config['/']['tools.CORS.on'] = True
 
 
 def cors_tool():

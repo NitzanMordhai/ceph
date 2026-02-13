@@ -19,6 +19,7 @@ from . import APIDoc, APIRouter, BaseController, CreatePermission, \
 
 logger = logging.getLogger(__name__)
 
+
 NVME_SCHEMA = {
     "available": (bool, "Is NVMe/TCP available?"),
     "message": (str, "Descriptions")
@@ -230,8 +231,8 @@ else:
                 "max_namespaces": Param(int, "Maximum number of namespaces", True, None),
                 "no_group_append": Param(int, "Do not append gateway group name to the NQN",
                                          True, False),
-                "serial_number": Param(int, "Subsystem serial number", True, None),
-                "dhchap_key": Param(int, "Subsystem DH-HMAC-CHAP key", True, None),
+                "serial_number": Param(str, "Subsystem serial number", True, None),
+                "dhchap_key": Param(str, "Subsystem DH-HMAC-CHAP key", True, None),
                 "gw_group": Param(str, "NVMeoF gateway group", True, None),
                 "traddr": Param(str, "NVMeoF gateway address", True, None),
             },
@@ -246,7 +247,8 @@ else:
                 NVMeoFClient.pb2.create_subsystem_req(
                     subsystem_nqn=nqn, serial_number=serial_number,
                     max_namespaces=max_namespaces, enable_ha=enable_ha,
-                    no_group_append=no_group_append, dhchap_key=dhchap_key
+                    no_group_append=no_group_append,
+                    dhchap_key=dhchap_key
                 )
             )
 
@@ -287,7 +289,8 @@ else:
                        traddr: Optional[str] = None):
             return NVMeoFClient(gw_group=gw_group, traddr=traddr).stub.change_subsystem_key(
                 NVMeoFClient.pb2.change_subsystem_key_req(
-                    subsystem_nqn=nqn, dhchap_key=dhchap_key
+                    subsystem_nqn=nqn,
+                    dhchap_key=dhchap_key
                 )
             )
 
@@ -1223,6 +1226,8 @@ else:
                 NVMeoFClient.pb2.remove_host_req(subsystem_nqn=nqn, host_nqn=host_nqn)
             )
 
+        @Endpoint('PUT', '{host_nqn}/change_key')
+        @UpdatePermission
         @empty_response
         @Endpoint('PUT', '{host_nqn}/change_key')
         @UpdatePermission

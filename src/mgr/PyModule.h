@@ -181,6 +181,9 @@ public:
   bool get_can_run() const {
     std::lock_guard l(lock) ; return can_run;
   }
+  bool is_using_main_interpreter() const {
+    return use_main_interpreter;
+  }
 };
 
 typedef std::shared_ptr<PyModule> PyModuleRef;

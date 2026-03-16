@@ -214,6 +214,32 @@ std::optional<std::vector<std::byte>> ActivePyModule::dispatch_remote(
   return pickled_ret_str;
 }
 
+PyObject *ActivePyModule::dispatch_remote_direct(
+    const std::string &method,
+    PyObject *args,
+    PyObject *kwargs,
+    std::string *err)
+{
+  ceph_assert(err != nullptr);
+
+  auto boundMethod = PyObject_GetAttrString(pClassInstance, method.c_str());
+  ceph_assert(boundMethod != nullptr);
+
+  dout(20) << "Calling (direct) " << py_module->get_name()
+           << "." << method << "..." << dendl;
+
+  auto ret = PyObject_Call(boundMethod, args, kwargs);
+  Py_DECREF(boundMethod);
+  if (ret == nullptr) {
+    std::string caller = "ActivePyModule::dispatch_remote_direct "s + method;
+    *err = handle_pyerror(true, get_name(), caller);
+    return nullptr;
+  }
+
+  dout(20) << "Success calling (direct) '" << method << "'" << dendl;
+  return ret;
+}
+
 void ActivePyModule::config_notify()
 {
   if (is_dead()) {

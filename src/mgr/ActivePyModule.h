@@ -73,6 +73,12 @@ public:
       std::span<std::byte const> pickled_kwargs,
       std::string *err);
 
+  PyObject *dispatch_remote_direct(
+    const std::string &method,
+    PyObject *args,
+    PyObject *kwargs,
+    std::string *err);
+
   int handle_command(
     const ModuleCommand& module_command,
     const MgrSession& session,

@@ -346,6 +346,7 @@ int PyModule::load(PyThreadState *pMainThreadState)
     subinterpreter_modules.begin(), subinterpreter_modules.end(), module_name
   ) == 0;
 
+  
   if (use_main_interpreter) {
     // Use main interpreter
     derr << "Loading module " << module_name << " in main interpreter" << dendl;

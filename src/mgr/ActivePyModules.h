@@ -240,6 +240,21 @@ public:
       std::span<std::byte const> pickled_kwargs,
       std::string *err);
 
+  PyObject *call_remote_direct(
+    const std::string &module_name,
+    const std::string &method,
+    PyObject *args,
+    PyObject *kwargs,
+    std::string *err);
+
+  PyObject *dispatch_remote_direct(
+      const std::string &module_name,
+      const std::string &method,
+      PyObject *args,
+      PyObject *kwargs,
+      std::string *err);
+
+  bool is_module_main_interp(const std::string &module_name);
   int init();
 
   void start_one(PyModuleRef py_module);

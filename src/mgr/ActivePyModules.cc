@@ -639,6 +639,26 @@ std::optional<std::vector<std::byte>> ActivePyModules::dispatch_remote(
     method, pickled_args, pickled_kwargs, err);
 }
 
+PyObject *ActivePyModules::call_remote_direct(
+    const std::string &module_name,
+    const std::string &method,
+    PyObject *args,
+    PyObject *kwargs,
+    std::string *err)
+{
+  auto mod_iter = modules.find(module_name);
+  ceph_assert(mod_iter != modules.end());
+
+  return mod_iter->second->dispatch_remote_direct(
+    method, args, kwargs, err);
+}
+
+bool ActivePyModules::is_module_main_interp(const std::string &module_name)
+{
+  auto it = modules.find(module_name);
+  if (it == modules.end()) return false;
+  return it->second->py_module->is_using_main_interpreter();
+}
 
 bool ActivePyModules::get_config(const std::string &module_name,
     const std::string &key, std::string *val) const

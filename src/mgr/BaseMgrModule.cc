@@ -850,6 +850,25 @@ ceph_dispatch_remote(BaseMgrModule *self, PyObject *args)
     return nullptr;
   }
 
+  // Fast path: source and target modules run in main interpreter.
+  // No GIL drop, no pickle needed.
+  if (self->this_module->py_module->is_using_main_interpreter() &&
+      self->py_modules->is_module_main_interp(other_module)) {
+    dout(20) << __func__ << " fast path for module " << other_module
+            << " method " << method << dendl;
+    std::string err;
+    PyObject *ret = self->py_modules->call_remote_direct(
+        other_module, method, remote_args, remote_kwargs, &err);
+    if (ret == nullptr) {
+      PyErr_SetString(PyExc_RuntimeError, err.c_str());
+      return nullptr;
+    }
+    return ret;
+  }
+  dout(20) << __func__ << " slow path for module " << other_module
+          << " method " << method << dendl;
+  // Slow path: modules not running in same interpreter, need to pickle 
+  // args and drop GIL for method existence check and method execution.
   auto pmodule = self->this_module->py_module->pPickleModule;
   auto pickled_args = PyObject_CallMethodObjArgs(
     pmodule,

@@ -170,7 +170,7 @@ export class PoolFormComponent extends CdForm implements OnInit {
             })
           ]
         }),
-        poolType: new UntypedFormControl('', {
+        poolType: new UntypedFormControl('replicated', {
           validators: [Validators.required]
         }),
         crushRule: new UntypedFormControl(null, {
@@ -214,6 +214,7 @@ export class PoolFormComponent extends CdForm implements OnInit {
       }
       this.listenToChanges();
       this.setComplexValidators();
+      this.poolTypeChange('replicated');
     });
     this.loadingReady();
   }
@@ -568,10 +569,7 @@ export class PoolFormComponent extends CdForm implements OnInit {
         ]);
     } else {
       CdValidators.validateIf(this.form.get('size'), () => this.isReplicated, [
-        CdValidators.custom(
-          'min',
-          (value: number) => this.form.getValue('size') && value < this.getMinSize()
-        ),
+        CdValidators.number(false),
         CdValidators.custom(
           'max',
           (value: number) => this.form.getValue('size') && this.getMaxSize() < value

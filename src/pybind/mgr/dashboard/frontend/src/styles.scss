@@ -224,3 +224,7 @@ input:-webkit-autofill:active {
 .border-subtle {
   border: 1px solid var(--cds-border-subtle);
 }
+
+.popover {
+  --bs-popover-zindex: 9999;
+}

@@ -99,6 +99,19 @@ class SubsystemStatus(NamedTuple):
     nqn: str
 
 
+class KMIPServerEndpoint(NamedTuple):
+    subsystem_nqn: str
+    server_name: str
+    address: str
+    port: int
+
+
+class SubsystemListKMIPEndpoints(NamedTuple):
+    status: int
+    error_message: str
+    endpoints: Annotated[List[KMIPServerEndpoint], CliFlags.EXCLUSIVE_LIST]
+
+
 class Connection(NamedTuple):
     nqn: str
     traddr: str
@@ -128,6 +141,11 @@ class NamespaceCreation(NamedTuple):
     nsid: int
 
 
+class EncryptionEntry(NamedTuple):
+    format: str
+    key_id: str
+
+
 class Namespace(NamedTuple):
     bdev_name: str
     rbd_image_name: Annotated[str, CliHeader("RBD Image")]
@@ -148,6 +166,9 @@ class Namespace(NamedTuple):
     trash_image: Optional[bool]
     disable_auto_resize: Optional[bool]
     read_only: Optional[bool]
+    location: Optional[str]
+    encryption_algorithm: Optional[str]
+    encryption_entries: Annotated[List[EncryptionEntry], CliFlags.EXCLUSIVE_LIST]
 
 
 class NamespaceList(NamedTuple):

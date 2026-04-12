@@ -32,6 +32,7 @@
 #include <boost/asio/executor_work_guard.hpp>
 #include <boost/asio/post.hpp>
 
+#include "include/types.h"
 #include "msg/Messenger.h"
 
 #include "MonMap.h"
@@ -156,6 +157,7 @@ private:
 struct MonClientQuorum {
 private:
   CephContext *cct;
+  void recalc_agreed_quorum();
 public:
   std::map<entity_addrvec_t, std::pair<version_t, std::set<int>>> quorums;
   std::set<int> agreed_quorum;
@@ -177,35 +179,13 @@ public:
     std::lock_guard l{quorum_l};
     return quorums.empty();
   }
-  void recalc_agreed_quorum();
   void add_quorum(const entity_addrvec_t& addrs,
       const version_t epoch,
       const std::set<int>& quorum) {
-    {
-      std::lock_guard l{quorum_l};
-      quorums[addrs] = std::make_pair(epoch, quorum);
-    }
+    std::lock_guard l{quorum_l};
+    quorums[addrs] = std::make_pair(epoch, quorum);
     recalc_agreed_quorum();
   }
-};
-
-class AuxConnections {
-public:
-  AuxConnections(std::shared_ptr<MonConnection> conn_)
-    : conn(std::move(conn_))
-  { sub.want("monmap", 0, 0);}
-
-  std::shared_ptr<MonConnection> get_con() {
-    return conn;
-  }
-
-  void start_conn(epoch_t epoch, const EntityName& entity_name) {
-    conn->start(epoch, entity_name);
-  }
-
-private:
-  std::shared_ptr<MonConnection> conn;
-  MonSub sub;
 };
 
 struct MonClientPinger : public Dispatcher,
@@ -366,7 +346,7 @@ public:
   }
 
 
-  void send_subscribe();
+  void send_subscribe(epoch_t start_epoch);
 
 private:
   std::string mon_name;
@@ -433,14 +413,6 @@ public:
 
   size_t size() const {
     return aux_list.size();
-  }
-
-  void splice(unsigned keep, std::map<entity_addrvec_t, MonConnection>& other) {
-    for (auto it = other.begin(); it != other.end() && keep > 0; ++it, --keep) {
-      aux_list.emplace(it->first,
-        AuxConnection(it->second.get_mon_name(),
-        std::make_unique<MonConnection>(std::move(it->second))));
-    }
   }
 
   void emplace(entity_addrvec_t addr, AuxConnection conn) {
@@ -515,7 +487,6 @@ private:
   std::map<entity_addrvec_t, MonConnection> pending_cons;
   std::set<unsigned> tried;
   AuxConnectionManager aux_list;
-  std::map<entity_addrvec_t, std::string> failed_cons;
 
   EntityName entity_name;
 

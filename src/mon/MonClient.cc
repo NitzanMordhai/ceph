@@ -326,7 +326,7 @@ bool MonClient::ms_dispatch(Message *m)
     if (_hunting()) {
       auto p = _find_pending_con(m->get_connection());
       if (p == pending_cons.end()) {
-        if (active_con->get_con() != m->get_connection()
+        if (active_con && active_con->get_con() != m->get_connection()
           && (m->get_type() == CEPH_MSG_MON_MAP)) {
           auto aux_p = _find_aux_con(m->get_connection());
           if (aux_p != aux_list.end()) {
@@ -429,7 +429,6 @@ void MonClient::handle_quorum_not_active(MMonMap *m) {
   auto con_addrs = m->get_source_addrs();
   auto mon_name = monmap.get_name(con_addrs);
 
-  MonMap peon_map;
   const auto old_epoch = monmap.get_epoch();
   if (old_epoch == 0 || old_epoch < m->monmap_epoch) {
     auto p = m->monmapbl.cbegin();
@@ -438,7 +437,7 @@ void MonClient::handle_quorum_not_active(MMonMap *m) {
   ldout(cct, 10) << __func__ << " handle_monmap - quorum is "
     << m->quorum << " from mon."
     << mon_name << dendl;
-  quorum.add_quorum(con_addrs, peon_map.epoch, m->quorum);
+  quorum.add_quorum(con_addrs, m->monmap_epoch, m->quorum);
 }
 
 /* Unlike all the other message-handling functions, we don't put away a reference
@@ -753,7 +752,17 @@ void MonClient::handle_auth(MAuthReply *m)
     auto& mc = found->second;
     ceph_assert(mc.have_session());
     active_con.reset(new MonConnection(std::move(mc)));
-    pending_cons.clear();
+    pending_cons.erase(found);
+    auto keep = cct->_conf.get_val<uint64_t>("mon_aux_list_connections");
+    for (auto it_other = pending_cons.begin(); it_other != pending_cons.end(); ) {
+      if (aux_list.size() < keep) {
+        aux_list.add_connection(it_other->first, std::make_unique<MonConnection>(std::move(it_other->second)));
+      }
+      it_other = pending_cons.erase(it_other);
+    }
+    for (auto& c : aux_list) {
+      c.second.send_subscribe(monmap.get_epoch());
+    }
   }
 
   _finish_hunting(auth_err);
@@ -961,6 +970,7 @@ bool MonClient::ms_handle_reset(Connection *con)
     } else {
       ldout(cct, 10) << "ms_handle_reset stray mon " << con->get_peer_addrs()
 		     << dendl;
+      aux_list.erase(con->get_peer_addrs());
       return true;
     }
   }
@@ -1535,6 +1545,13 @@ int MonClient::get_auth_request(
 	  entity_name, want_keys, rotating_secrets.get());
       }
     }
+    for (auto& i : aux_list) {
+      if (i.second.is_con(con)) {
+        return i.second.get_auth_request(
+          auth_method, preferred_modes, bl,
+          entity_name, want_keys, rotating_secrets.get());
+      }
+    }
     return -ENOENT;
   }
 
@@ -1627,12 +1644,6 @@ int MonClient::handle_auth_done(
           if (!active_con) { // we have winner for this active_con
             active_con.reset(new MonConnection(std::move(it->second)));
             it = pending_cons.erase(it);
-
-            ldout(cct, 10) << __func__ << " hunting success, active mon."
-                        << monmap.get_name(active_con->get_con()->get_peer_addr())
-                        << " addr " << active_con->get_con()->get_peer_addr() 
-                        << " aux connections: " << aux_list.size()
-                        << dendl;
             auto keep = cct->_conf.get_val<uint64_t>("mon_aux_list_connections");
             for (auto it_other = pending_cons.begin(); it_other != pending_cons.end(); ) {
               if (aux_list.size() < keep) {
@@ -1650,21 +1661,26 @@ int MonClient::handle_auth_done(
 
             // Start background subs for everyone
             for (auto& c : aux_list) {
-              c.second.send_subscribe();
+              c.second.send_subscribe(monmap.get_epoch());
             }
+            ldout(cct, 10) << __func__ << " hunting success, active mon."
+                        << monmap.get_name(active_con->get_con()->get_peer_addr())
+                        << " addr " << active_con->get_con()->get_peer_addr() 
+                        << " aux connections: " << aux_list.size()
+                        << dendl;
             return 0;
           } else {
             // active con already exists, so add this one to the aux list if we have room
             auto keep = cct->_conf.get_val<uint64_t>("mon_aux_list_connections");
             if (aux_list.size() < keep) {
+              aux_list.add_connection(it->first,
+                std::make_unique<MonConnection>(std::move(it->second)));
+              aux_list.get_aux_list().at(it->first).send_subscribe(monmap.get_epoch());
               ldout(cct, 10) << __func__ << " adding extra aux connection for "
                           << monmap.get_name(it->second.get_con()->get_peer_addr())
                           << " addr " << it->second.get_con()->get_peer_addr() 
                           << " aux connections: " << aux_list.size()
                           << dendl;
-              aux_list.add_connection(it->first,
-                std::make_unique<MonConnection>(std::move(it->second)));
-              aux_list.get_aux_list().at(it->first).send_subscribe();
             }
             it = pending_cons.erase(it);
             return 0;
@@ -1680,18 +1696,19 @@ int MonClient::handle_auth_done(
           return r;
         }
       } else {
-        it++; // Move iterator to the next pending con since its not connected
+        it++;
       }
     }
 
     // Handle Auxiliary Connections (Updates to background sessions)
     for (auto& i : aux_list) {
       if (i.second.is_con(con)) {
+        auto key = i.first;
         int r = i.second.handle_auth_done(
           auth_meta, global_id, bl,
           session_key, connection_secret);
         if (r) {
-          aux_list.erase(i.first);
+          aux_list.erase(key);
         }
         return r;
       }
@@ -2134,7 +2151,7 @@ int MonConnection::authenticate(MAuthReply *m)
 }
 
 void MonClientQuorum::recalc_agreed_quorum() {
-  std::lock_guard l{quorum_l};
+  ceph_assert(ceph_mutex_is_locked(quorum_l));
   if (quorums.empty()) {
     agreed_quorum.clear();
     return;
@@ -2165,9 +2182,10 @@ void MonClientQuorum::recalc_agreed_quorum() {
 }
 
 
-void AuxConnection::send_subscribe() {
-  sub.want("monmap", 0, 0);
-  get_connection_ptr()->get_con()->send_message(new MMonSubscribe(ceph_get_short_hostname(), sub.get_subs()));
+void AuxConnection::send_subscribe(epoch_t start_epoch) {
+  sub.want("monmap", start_epoch, 0);
+  get_connection_ptr()->get_con()->send_message(
+    new MMonSubscribe(ceph_get_short_hostname(), sub.get_subs()));
 }
 
 void MonClient::register_config_callback(md_config_t::config_callback fn) {

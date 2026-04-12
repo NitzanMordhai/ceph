@@ -22,6 +22,7 @@
 #include <boost/range/adaptor/filtered.hpp>
 #include <boost/range/algorithm/copy.hpp>
 #include <boost/range/algorithm_ext/copy_n.hpp>
+#include "common/admin_finisher.h"
 #include "common/weighted_shuffle.h"
 
 #include "include/random.h"
@@ -1616,51 +1617,74 @@ int MonClient::handle_auth_done(
 	}
       }
     }
-    for (auto& i : pending_cons) {
-      if (i.second.is_con(con)) {
-	int r = i.second.handle_auth_done(
-	  auth_meta, global_id, bl,
-	  session_key, connection_secret);
-	if (r) {
-	  _erase_pending_cons(i.first);
-	  if (!pending_cons.empty()) {
-	    return r;
-	  }
-	} else {
-    // check if we already have active_con
-    if (active_con) {
-      auto keep = cct->_conf.get_val<uint64_t>("mon_aux_list_connections");
-      if (aux_list.size() < keep) {
-        aux_list.add_connection(i.first, 
-          std::make_unique<MonConnection>(std::move(i.second)));
-      }
-      _erase_pending_cons(i.first);
-    } else {
-      active_con.reset(new MonConnection(std::move(i.second)));
-      _erase_pending_cons(i.first);
-      ceph_assert(active_con->have_session());
-      ldout(cct, 10) << __func__ << " hunting success, active mon."
-            << monmap.get_name(active_con->get_con()->get_peer_addr())
-            << " addr " << active_con->get_con()->get_peer_addr() 
-            << " aux connections: " << aux_list.size()
-            << dendl;   
-	  }
-  }
-  if (!pending_cons.empty()) {
-    return r;  // other con will need to finish auth
-  }
-  for (auto& c : aux_list) {
-    c.second.send_subscribe();
-  }
-	_finish_hunting(r);
-	if (r || monmap.get_epoch() > 0) {
-	  _finish_auth(r);
-	}
-	return r;
+    for (auto it = pending_cons.begin(); it != pending_cons.end(); ) {
+      if (it->second.is_con(con)) {
+        int r = it->second.handle_auth_done(
+          auth_meta, global_id, bl,
+          session_key, connection_secret);
+
+        if (r == 0) { // success
+          if (!active_con) { // we have winner for this active_con
+            active_con.reset(new MonConnection(std::move(it->second)));
+            it = pending_cons.erase(it);
+
+            ldout(cct, 10) << __func__ << " hunting success, active mon."
+                        << monmap.get_name(active_con->get_con()->get_peer_addr())
+                        << " addr " << active_con->get_con()->get_peer_addr() 
+                        << " aux connections: " << aux_list.size()
+                        << dendl;
+            auto keep = cct->_conf.get_val<uint64_t>("mon_aux_list_connections");
+            for (auto it_other = pending_cons.begin(); it_other != pending_cons.end(); ) {
+              if (aux_list.size() < keep) {
+                aux_list.add_connection(it_other->first,
+                  std::make_unique<MonConnection>(std::move(it_other->second)));
+              }
+              it_other = pending_cons.erase(it_other);
+            }
+
+            // now that pending_cons is empty, we can making _hunting() false
+            _finish_hunting(0);
+            if (monmap.get_epoch() > 0) {
+              _finish_auth(0);
+            }
+
+            // Start background subs for everyone
+            for (auto& c : aux_list) {
+              c.second.send_subscribe();
+            }
+            return 0;
+          } else {
+            // active con already exists, so add this one to the aux list if we have room
+            auto keep = cct->_conf.get_val<uint64_t>("mon_aux_list_connections");
+            if (aux_list.size() < keep) {
+              ldout(cct, 10) << __func__ << " adding extra aux connection for "
+                          << monmap.get_name(it->second.get_con()->get_peer_addr())
+                          << " addr " << it->second.get_con()->get_peer_addr() 
+                          << " aux connections: " << aux_list.size()
+                          << dendl;
+              aux_list.add_connection(it->first,
+                std::make_unique<MonConnection>(std::move(it->second)));
+              aux_list.get_aux_list().at(it->first).send_subscribe();
+            }
+            it = pending_cons.erase(it);
+            return 0;
+          }
+        } else {
+          // r != 0 means this con failed auth, so remove it from pending_cons and try the next one
+          it = pending_cons.erase(it);
+          if (pending_cons.empty() && !active_con) {
+            ldout(cct, 10) << __func__ << " hunting failed, no more pending cons" << dendl;
+            _finish_hunting(r);
+            _finish_auth(r);
+          }
+          return r;
+        }
+      } else {
+        it++; // Move iterator to the next pending con since its not connected
       }
     }
-    ldout(cct, 10) << __func__ << " hmm, no pending con for " << con
-       << " auth_meta " << auth_meta->authorizer.get() << dendl;
+
+    // Handle Auxiliary Connections (Updates to background sessions)
     for (auto& i : aux_list) {
       if (i.second.is_con(con)) {
         int r = i.second.handle_auth_done(
@@ -1668,19 +1692,19 @@ int MonClient::handle_auth_done(
           session_key, connection_secret);
         if (r) {
           aux_list.erase(i.first);
-          if (!aux_list.empty()) {
-            return r;
-          }
         }
+        return r;
       }
     }
+    
+    // If it's a monitor but not found in any list
     return -ENOENT;
+    
   } else {
-    // verify authorizer reply
+    // Handling for Non-Monitor connections (e.g., Authorizer replies)
     auto p = bl.begin();
     if (!auth_meta->authorizer->verify_reply(p, &auth_meta->connection_secret)) {
-      ldout(cct, 0) << __func__ << " failed verifying authorizer reply"
-		    << dendl;
+      ldout(cct, 0) << __func__ << " failed verifying authorizer reply" << dendl;
       return -EACCES;
     }
     ldout(cct, 10) << __func__ << " authorizer reply verified" << dendl;
@@ -1688,6 +1712,7 @@ int MonClient::handle_auth_done(
     return 0;
   }
 }
+
 
 int MonClient::handle_auth_bad_method(
   Connection *con,

@@ -154,37 +154,49 @@ private:
   std::string mon_name;
 };
 
-struct MonClientQuorum {
+class MonClientQuorum {
 private:
   CephContext *cct;
-  void recalc_agreed_quorum();
-public:
-  std::map<entity_addrvec_t, std::pair<version_t, std::set<int>>> quorums;
   std::set<int> agreed_quorum;
-  mutable ceph::mutex quorum_l = ceph::make_mutex("MonClientQuorum");
+  mutable ceph::mutex quorum_lock = ceph::make_mutex("MonClientQuorum");
+  std::map<entity_addrvec_t, std::pair<version_t, std::set<int>>> quorums;
+
+  void recalc_agreed_quorum();
+
+public:
 
   MonClientQuorum(CephContext *cct_ = nullptr) : cct(cct_) {}
-  void set_cct(CephContext *cct_) {
-    cct = cct_;
-  }
+
+  void set_cct(CephContext *cct_) { cct = cct_; }
+
   bool in_quorum(const int rank) const {
-    std::lock_guard l{quorum_l};
+    std::lock_guard l{quorum_lock};
     // first time connection
-    if (quorums.empty() && agreed_quorum.empty()) {
+    if (quorums.empty()) {
       return true;
     }
     return agreed_quorum.count(rank) > 0;
   }
   bool empty() const {
-    std::lock_guard l{quorum_l};
+    std::lock_guard l{quorum_lock};
     return quorums.empty();
   }
   void add_quorum(const entity_addrvec_t& addrs,
       const version_t epoch,
       const std::set<int>& quorum) {
-    std::lock_guard l{quorum_l};
+    std::lock_guard l{quorum_lock};
     quorums[addrs] = std::make_pair(epoch, quorum);
     recalc_agreed_quorum();
+  }
+
+  std::set<int> get_agreed_quorum() const {
+    std::lock_guard l{quorum_lock};
+    return agreed_quorum;
+  }
+
+  std::map<entity_addrvec_t, std::pair<version_t, std::set<int>>> get_quorums() const {
+    std::lock_guard l{quorum_lock};
+    return quorums;
   }
 };
 
@@ -355,82 +367,6 @@ private:
   MonSub sub;
 };
 
-// Manager for auxiliary connections
-class AuxConnectionManager {
-public:
-  std::map<entity_addrvec_t, AuxConnection>& get_aux_list() {
-    return aux_list;
-  }
-  const std::map<entity_addrvec_t, AuxConnection>& get_aux_list() const {
-    return aux_list;
-  }
-
-  void add_connection(const entity_addrvec_t addr, std::unique_ptr<MonConnection> mc) {
-    if (aux_list.find(addr) == aux_list.end()) {
-      auto name = mc->get_mon_name();
-      aux_list.emplace(addr, AuxConnection(name, std::move(mc)));
-    }
-  }
-
-  void update_status(const entity_addrvec_t addr, ConnectionStatus new_status) {
-    auto it = aux_list.find(addr);
-    if (it != aux_list.end()) {
-      it->second.set_status(new_status);
-    }
-  }
-
-  // TODO: Implement a better selection algorithm
-  // by rank ?
-  MonConnection* get_best_candidate() {
-    for (const auto& [_, aux_conn] : aux_list) {
-      if (aux_conn.get_status() == ConnectionStatus::HEALTHY) {
-        return aux_conn.get_connection_ptr();
-      }
-    }
-    return nullptr; // No healthy candidate found
-  }
-
-  // Cleanup unresponsive auxiliary connections
-  void cleanup_unresponsive() {
-    for (auto it = aux_list.begin(); it != aux_list.end();) {
-      if (it->second.get_status() == ConnectionStatus::UNRESPONSIVE) {
-        it = aux_list.erase(it);
-      } else { ++it; }
-    }
-  }
-
-  void clear() {
-    aux_list.clear();
-  }
-
-  bool empty() const {
-    return aux_list.empty();
-  }
-
-  void erase(const entity_addrvec_t& addr) {
-    aux_list.erase(addr);
-  }
-
-  size_t size() const {
-    return aux_list.size();
-  }
-
-  void emplace(entity_addrvec_t addr, AuxConnection conn) {
-    aux_list.emplace(addr, std::move(conn));
-  }
-
-  auto begin() { return aux_list.begin(); }
-  auto end() { return aux_list.end(); }
-
-  auto begin() const { return aux_list.begin(); }
-  auto end() const { return aux_list.end(); }
-
-  auto cbegin() const { return aux_list.cbegin(); }
-  auto cend() const { return aux_list.cend(); } 
-
-private:
-  std::map<entity_addrvec_t, AuxConnection> aux_list;
-};
 
 const boost::system::error_category& monc_category() noexcept;
 
@@ -486,7 +422,7 @@ private:
   std::unique_ptr<MonConnection> active_con;
   std::map<entity_addrvec_t, MonConnection> pending_cons;
   std::set<unsigned> tried;
-  AuxConnectionManager aux_list;
+  std::map<entity_addrvec_t, AuxConnection> aux_list;
 
   EntityName entity_name;
 
@@ -573,26 +509,15 @@ private:
     return pending_cons.end();
   }
 
-  void _erase_pending_cons(
-    const entity_addrvec_t &addr) {
-    for (auto it = pending_cons.begin(); it != pending_cons.end(); ) {
-      if (it->first.get_legacy_str() == addr.get_legacy_str()) {
-        it = pending_cons.erase(it);
-      } else {
-        ++it;
-      }
-    }
+  void _erase_pending_cons(const entity_addrvec_t &addr) {
+    pending_cons.erase(addr);
   }
 
-  //find aux connections
-  std::map<entity_addrvec_t, AuxConnection>::iterator _find_aux_con(
-    const ConnectionRef& con) {
-    for (auto i = aux_list.begin(); i != aux_list.end(); ++i) {
-      if (i->second.get_connection_ptr()->get_con() == con) {
-       return i;
-      }
+  void _add_aux_connection(const entity_addrvec_t& addr, std::unique_ptr<MonConnection> mc) {
+    if (aux_list.find(addr) == aux_list.end()) {
+      auto name = mc->get_mon_name();
+      aux_list.emplace(addr, AuxConnection(name, std::move(mc)));
     }
-    return aux_list.end();
   }
 
 public:

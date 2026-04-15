@@ -328,8 +328,9 @@ bool MonClient::ms_dispatch(Message *m)
       if (p == pending_cons.end()) {
         if (active_con && active_con->get_con() != m->get_connection()
           && (m->get_type() == CEPH_MSG_MON_MAP)) {
-          auto aux_p = _find_aux_con(m->get_connection());
-          if (aux_p != aux_list.end()) {
+          if (std::ranges::any_of(aux_list, [&con = m->get_connection()](const auto& p) {
+                return p.second.get_connection_ptr()->get_con() == con;
+              })) {
             // don't ignore aux connections monmaps quorums
             ldout(cct, 10) << __func__ << " not ignoring aux connection monmap " << *m << dendl;
             handle_quorum_not_active(static_cast<MMonMap*>(m));
@@ -437,7 +438,9 @@ void MonClient::handle_quorum_not_active(MMonMap *m) {
   ldout(cct, 10) << __func__ << " handle_monmap - quorum is "
     << m->quorum << " from mon."
     << mon_name << dendl;
-  quorum.add_quorum(con_addrs, m->monmap_epoch, m->quorum);
+  if (m->get_header().version >= 2) {
+    quorum.add_quorum(con_addrs, m->monmap_epoch, m->quorum);
+  }
 }
 
 /* Unlike all the other message-handling functions, we don't put away a reference
@@ -463,7 +466,9 @@ void MonClient::handle_monmap(MMonMap *m)
   monmap.print(*_dout);
   *_dout << dendl;
   auto mon_name = monmap.get_name(con_addrs);
-  quorum.add_quorum(monmap.get_addrs(mon_name), monmap.epoch, m->quorum);
+  if (m->get_header().version >= 2) {
+    quorum.add_quorum(monmap.get_addrs(mon_name), monmap.epoch, m->quorum);
+  }
 
   if (old_epoch != monmap.get_epoch()) {
     tried.clear();
@@ -487,7 +492,7 @@ void MonClient::handle_monmap(MMonMap *m)
       _reopen_session();
     } else if (active_con && !quorum.in_quorum(monmap.get_rank(active_con->get_con()->get_peer_addr()))) {
       ldout(cct, 10) << "mon." << old_name << " at " << con_addrs
-         << " is no longer in quorum, agreed_quorum: " << quorum.agreed_quorum
+         << " is no longer in quorum, agreed_quorum: " << quorum.get_agreed_quorum()
          << " reopening session." << dendl;
       return _reopen_session();
     }
@@ -756,7 +761,7 @@ void MonClient::handle_auth(MAuthReply *m)
     auto keep = cct->_conf.get_val<uint64_t>("mon_aux_list_connections");
     for (auto it_other = pending_cons.begin(); it_other != pending_cons.end(); ) {
       if (aux_list.size() < keep) {
-        aux_list.add_connection(it_other->first, std::make_unique<MonConnection>(std::move(it_other->second)));
+        _add_aux_connection(it_other->first, std::make_unique<MonConnection>(std::move(it_other->second)));
       }
       it_other = pending_cons.erase(it_other);
     }
@@ -874,8 +879,8 @@ void MonClient::_add_conns()
 {
   // collect the next batch of candidates who are listed right next to the ones
   // already tried and are in the quorum.
-  ldout(cct, 20) << __func__ << " quorum agreed:" << quorum.agreed_quorum
-     << " tried:" << tried << " quorums:" << quorum.quorums << dendl;
+  ldout(cct, 20) << __func__ << " quorum agreed:" << quorum.get_agreed_quorum()
+     << " tried:" << tried << " quorums:" << quorum.get_quorums() << dendl;
   auto get_next_batch = [this](bool filter_by_quorum = true) -> std::vector<unsigned> {
     std::multimap<uint16_t, unsigned> ranks_by_priority;
     boost::copy(
@@ -1074,7 +1079,7 @@ void MonClient::tick()
     if (!quorum.in_quorum(cur_rank)) {
       ldout(cct, 10) << "mon out of quorum, reopening session."
                     << " cur_rank: " << cur_rank
-                    << " agreed_quorum: " << quorum.agreed_quorum << dendl;
+                    << " agreed_quorum: " << quorum.get_agreed_quorum() << dendl;
       return _reopen_session();
     }
 
@@ -1647,7 +1652,7 @@ int MonClient::handle_auth_done(
             auto keep = cct->_conf.get_val<uint64_t>("mon_aux_list_connections");
             for (auto it_other = pending_cons.begin(); it_other != pending_cons.end(); ) {
               if (aux_list.size() < keep) {
-                aux_list.add_connection(it_other->first,
+                _add_aux_connection(it_other->first,
                   std::make_unique<MonConnection>(std::move(it_other->second)));
               }
               it_other = pending_cons.erase(it_other);
@@ -1673,9 +1678,9 @@ int MonClient::handle_auth_done(
             // active con already exists, so add this one to the aux list if we have room
             auto keep = cct->_conf.get_val<uint64_t>("mon_aux_list_connections");
             if (aux_list.size() < keep) {
-              aux_list.add_connection(it->first,
+              _add_aux_connection(it->first,
                 std::make_unique<MonConnection>(std::move(it->second)));
-              aux_list.get_aux_list().at(it->first).send_subscribe(monmap.get_epoch());
+              aux_list.at(it->first).send_subscribe(monmap.get_epoch());
               ldout(cct, 10) << __func__ << " adding extra aux connection for "
                           << monmap.get_name(it->second.get_con()->get_peer_addr())
                           << " addr " << it->second.get_con()->get_peer_addr() 
@@ -2151,7 +2156,7 @@ int MonConnection::authenticate(MAuthReply *m)
 }
 
 void MonClientQuorum::recalc_agreed_quorum() {
-  ceph_assert(ceph_mutex_is_locked(quorum_l));
+  ceph_assert(ceph_mutex_is_locked(quorum_lock));
   if (quorums.empty()) {
     agreed_quorum.clear();
     return;
@@ -2184,8 +2189,8 @@ void MonClientQuorum::recalc_agreed_quorum() {
 
 void AuxConnection::send_subscribe(epoch_t start_epoch) {
   sub.want("monmap", start_epoch, 0);
-  get_connection_ptr()->get_con()->send_message(
-    new MMonSubscribe(ceph_get_short_hostname(), sub.get_subs()));
+  get_connection_ptr()->get_con()->send_message2(
+    ceph::make_message<MMonSubscribe>(ceph_get_short_hostname(), sub.get_subs()));
 }
 
 void MonClient::register_config_callback(md_config_t::config_callback fn) {

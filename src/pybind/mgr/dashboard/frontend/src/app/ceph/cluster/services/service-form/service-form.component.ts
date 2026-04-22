@@ -72,7 +72,6 @@ export class ServiceFormComponent extends CdForm implements OnInit {
   resource: string;
   serviceTypes: string[] = [];
   serviceIds: string[] = [];
-  selectedLabels: string[] = [];
   selectedHosts: string[] = [];
   labels: string[];
   labelClick = new Subject<string>();
@@ -1271,9 +1270,9 @@ export class ServiceFormComponent extends CdForm implements OnInit {
           }
           break;
         case 'label':
-          serviceSpec['placement']['label'] = values['label']
-            .filter((label: { content: string; selected: boolean }) => label.selected)
-            .map((label: { content: string }) => label.content);
+          if (!_.isEmpty(values['label'])) {
+            serviceSpec['placement']['label'] = values['label']?.content;
+          }
           break;
       }
       if (_.isNumber(values['count']) && values['count'] > 0) {
@@ -1406,9 +1405,8 @@ export class ServiceFormComponent extends CdForm implements OnInit {
     });
   }
 
-  multiSelector(event: any, field: 'label' | 'hosts') {
-    if (field === 'hosts') this.selectedHosts = event.map((host: any) => host.content);
-    else this.selectedLabels = event.map((label: any) => label.content);
+  multiSelector(event: any) {
+    this.selectedHosts = event.map((host: any) => host.content);
   }
 
   get isPrefixedNamedService(): boolean {

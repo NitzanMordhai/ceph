@@ -91,6 +91,9 @@ export enum Icons {
   checkmarkOutline = 'checkmark--outline',
   circleDash = 'circle-dash',
   datastore = 'datastore',
+  ibmCloudBareMetalServer = 'ibm-cloud--bare-metal-server',
+  ibmCloudDedicatedHost = 'ibm-cloud--dedicated-host',
+  clusterIcon = 'web-services--cluster',
   /* Icons for special effect */
   large = 'fa fa-lg', // icon becomes 33% larger
   large2x = 'fa fa-2x', // icon becomes 50% larger
@@ -101,6 +104,28 @@ export enum Icons {
   pulse = 'fa fa-pulse', // To have spinner rotate with 8 steps
   spin = 'fa fa-spin', //  To get any icon to rotate
   inverse = 'fa fa-inverse', // To get an alternative icon color
+  notification = 'notification',
+  error = 'error--filled',
+  notificationOff = 'notification--off',
+  notificationNew = 'notification--new',
+  emptySearch = 'search',
+  dataViewAlt = 'data--view--alt',
+  dataCenter = 'data--center',
+  upgrade = 'upgrade',
+  warningAltFilled = 'warning--alt--filled',
+  help = 'help',
+  incidentReporter = 'incident-reporter',
+  ibmStreamSets = 'ibm--streamsets',
+  dataEnrichment = 'data-enrichment',
+  network1 = 'network--1',
+  chip = 'chip',
+  plug = 'plug',
+  vmdkDisk = 'vmdk-disk',
+  checkMarkOutline = 'checkmark--outline',
+  warningAlt = 'warning--alt',
+  arrowUpRight = 'arrow--up-right',
+  inProgress = 'in-progress',
+  arrowDown = 'arrow--down'
 }
 
 export enum IconSize {
@@ -115,8 +140,6 @@ export const ICON_TYPE = {
   danger: 'warning--filled',
   infoCircle: 'information--filled',
   success: 'checkmark--filled',
-  warning: 'warning',
-  warningAltFilled: 'warning--alt--filled',
   deploy: 'deploy',
   edit: 'edit',
   error: 'error--filled',
@@ -124,7 +147,25 @@ export const ICON_TYPE = {
   notificationOff: 'notification--off',
   notificationNew: 'notification--new',
   add: 'add',
-  emptySearch: 'emptySearch'
+  emptySearch: 'emptySearch',
+  dataViewAlt: 'data--view--alt',
+  dataCenter: 'data--center',
+  upgrade: 'upgrade',
+  warningAltFilled: 'warning--alt--filled',
+  help: 'help',
+  incidentReporter: 'incident-reporter',
+  ibmStreamSets: 'ibm--streamsets',
+  dataEnrichment: 'data-enrichment',
+  network1: 'network--1',
+  chip: 'chip',
+  plug: 'plug',
+  vmdkDisk: 'vmdk-disk',
+  warningAlt: 'warning--alt',
+  checkMarkOutline: 'checkmark--outline',
+  arrowUpRight: ' arrow--up-right',
+  inProgress: 'in-progress',
+  arrowDown: 'arrow--down',
+  warning: 'warning',
 } as const;
 
 export const EMPTY_STATE_IMAGE = {

@@ -5,6 +5,8 @@ import { NvmeofService } from '~/app/shared/api/nvmeof.service';
 import { of } from 'rxjs';
 import { HttpClientModule } from '@angular/common/http';
 import { SharedModule } from '~/app/shared/shared.module';
+import { provideAnimations } from '@angular/platform-browser/animations';
+import { provideToastr } from 'ngx-toastr';
 
 describe('NvmeofGatewayGroupComponent', () => {
   let component: NvmeofGatewayGroupComponent;
@@ -20,7 +22,11 @@ describe('NvmeofGatewayGroupComponent', () => {
     await TestBed.configureTestingModule({
       imports: [HttpClientModule, SharedModule, TabsModule, GridModule],
       declarations: [NvmeofGatewayGroupComponent],
-      providers: [{ provide: NvmeofService, useValue: nvmeofServiceSpy }]
+      providers: [
+        provideAnimations(),
+        provideToastr(),
+        { provide: NvmeofService, useValue: nvmeofServiceSpy }
+      ]
     }).compileComponents();
 
     fixture = TestBed.createComponent(NvmeofGatewayGroupComponent);

@@ -3,7 +3,7 @@ import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testin
 import { ActivatedRoute } from '@angular/router';
 import { BehaviorSubject, of, throwError } from 'rxjs';
 
-import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
+import { BrowserAnimationsModule, provideAnimations } from '@angular/platform-browser/animations';
 import { RouterTestingModule } from '@angular/router/testing';
 
 import { CephModule } from '~/app/ceph/ceph.module';
@@ -27,6 +27,7 @@ import { SharedModule } from '~/app/shared/shared.module';
 import { configureTestBed } from '~/testing/unit-test-helper';
 import { TagModule } from 'carbon-components-angular';
 import { NvmeofGatewayNodeComponent } from './nvmeof-gateway-node.component';
+import { provideToastr } from 'ngx-toastr';
 
 describe('NvmeofGatewayNodeComponent', () => {
   let component: NvmeofGatewayNodeComponent;
@@ -85,8 +86,8 @@ describe('NvmeofGatewayNodeComponent', () => {
       hostname: 'gateway-node-3',
       addr: '192.168.1.12',
       status: '',
-      labels: [],
-      services: [],
+      labels: [] as string[],
+      services: [] as string[],
       ceph_version: 'ceph version 18.0.0',
       sources: {
         ceph: true,
@@ -108,6 +109,8 @@ describe('NvmeofGatewayNodeComponent', () => {
       TagModule
     ],
     providers: [
+      provideAnimations(),
+      provideToastr(),
       { provide: AuthStorageService, useValue: fakeAuthStorageService },
       {
         provide: ActivatedRoute,

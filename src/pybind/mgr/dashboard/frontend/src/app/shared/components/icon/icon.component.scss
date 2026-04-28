@@ -5,11 +5,7 @@
 }
 
 .danger-icon {
-  fill: theme.$support-error !important;
-}
-
-.error-icon {
-  fill: theme.$support-error !important;
+  color: theme.$support-error !important;
 }
 
 //@TODO: this naming needs to be changed
@@ -19,11 +15,19 @@
 }
 
 .warning-icon {
-  color: theme.$support-caution-major;
+  fill: theme.$support-caution-major !important;
 }
 
 .warningAltFilled-icon {
-  color: theme.$support-caution-major;
+  fill: theme.$support-caution-major !important;
+}
+
+.error-icon {
+  fill: var(--cds-text-error) !important;
+}
+
+.info-icon {
+  fill: theme.$support-info !important;
 }
 
 .deploy-icon {
@@ -36,4 +40,20 @@
 
 .emptySearch-icon {
   fill: theme.$layer-selected-disabled !important;
+}
+
+.warningAlt-icon {
+  fill: theme.$support-caution-major !important;
+}
+
+.checkMarkOutline-icon {
+  fill: theme.$support-success !important;
+}
+
+.inProgress-icon {
+  fill: theme.$support-info !important;
+}
+
+.arrowDown-icon {
+  fill: theme.$support-error !important;
 }

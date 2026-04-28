@@ -41,7 +41,8 @@ import {
   TagModule,
   LinkModule,
   LayerModule,
-  TilesModule
+  TilesModule,
+  ThemeModule
 } from 'carbon-components-angular';
 
 import { MotdComponent } from '~/app/shared/components/motd/motd.component';
@@ -88,6 +89,8 @@ import { UpgradableComponent } from './upgradable/upgradable.component';
 import { ProgressComponent } from './progress/progress.component';
 import { TearsheetComponent } from './tearsheet/tearsheet.component';
 import { TearsheetStepComponent } from './tearsheet-step/tearsheet-step.component';
+import { SidePanelComponent } from './side-panel/side-panel.component';
+
 // Icons
 import InfoIcon from '@carbon/icons/es/information/16';
 import CopyIcon from '@carbon/icons/es/copy/32';
@@ -99,9 +102,26 @@ import ErrorFilledIcon from '@carbon/icons/es/error--filled/16';
 import InformationFilledIcon from '@carbon/icons/es/information--filled/16';
 import WarningFilledIcon from '@carbon/icons/es/warning--filled/16';
 import NotificationFilledIcon from '@carbon/icons/es/notification--filled/16';
+import DataViewAlt16 from '@carbon/icons/es/data--view--alt/16';
+import DataCenter16 from '@carbon/icons/es/data--center/16';
+import Upgrade16 from '@carbon/icons/es/upgrade/16';
+import Close16 from '@carbon/icons/es/close/16';
+import WarningAltFilled16 from '@carbon/icons/es/warning--alt--filled/16';
+import Help16 from '@carbon/icons/es/help/16';
+import IncidentReporter16 from '@carbon/icons/es/incident-reporter/16';
+import IbmStreamSets16 from '@carbon/icons/es/ibm--streamsets/16';
+import DataEnrichment16 from '@carbon/icons/es/data-enrichment/16';
+import Network116 from '@carbon/icons/es/network--1/16';
+import Chip16 from '@carbon/icons/es/chip/16';
+import Plug16 from '@carbon/icons/es/plug/16';
+import VmdkDisk16 from '@carbon/icons/es/vmdk-disk/16';
+import WarningAlt16 from '@carbon/icons/es/warning--alt/16';
+import CheckMarkOutline16 from '@carbon/icons/es/checkmark--outline/16';
+import ArrowUpRight16 from '@carbon/icons/es/arrow--up-right/16';
+import InProgress16 from '@carbon/icons/es/in-progress/16';
+import ArrowDown16 from '@carbon/icons/es/arrow--down/16';
 import Warning16 from '@carbon/icons/es/warning/16';
 import Deploy16 from '@carbon/icons/es/deploy/16';
-import Close16 from '@carbon/icons/es/close/16';
 import { SidebarLayoutComponent } from './sidebar-layout/sidebar-layout.component';
 
 @NgModule({
@@ -148,7 +168,8 @@ import { SidebarLayoutComponent } from './sidebar-layout/sidebar-layout.componen
     TagModule,
     LinkModule,
     LayerModule,
-    TilesModule
+    TilesModule,
+    ThemeModule
   ],
   declarations: [
     SparklineComponent,
@@ -194,6 +215,7 @@ import { SidebarLayoutComponent } from './sidebar-layout/sidebar-layout.componen
     IconComponent,
     TearsheetComponent,
     TearsheetStepComponent,
+    SidePanelComponent,
     SidebarLayoutComponent
   ],
   providers: [provideCharts(withDefaultRegisterables())],
@@ -237,6 +259,7 @@ import { SidebarLayoutComponent } from './sidebar-layout/sidebar-layout.componen
     IconComponent,
     TearsheetComponent,
     TearsheetStepComponent,
+    SidePanelComponent,
     SidebarLayoutComponent
   ]
 })
@@ -252,8 +275,25 @@ export class ComponentsModule {
       WarningFilledIcon,
       NotificationFilledIcon,
       Close16,
+      DataViewAlt16,
+      DataCenter16,
+      Upgrade16,
+      WarningAltFilled16,
+      Help16,
+      IncidentReporter16,
+      IbmStreamSets16,
+      DataEnrichment16,
+      Network116,
+      Chip16,
+      Plug16,
+      VmdkDisk16,
+      WarningAlt16,
+      CheckMarkOutline16,
+      ArrowUpRight16,
+      InProgress16,
+      ArrowDown16,
       Deploy16,
-      Warning16,
+      Warning16
     ]);
   }
 }

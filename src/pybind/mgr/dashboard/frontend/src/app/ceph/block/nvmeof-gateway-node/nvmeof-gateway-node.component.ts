@@ -278,7 +278,7 @@ export class NvmeofGatewayNodeComponent implements OnInit, OnDestroy {
       const hosts = group.placement?.hosts || (group.spec as any)?.placement?.hosts || [];
       hosts.forEach((hostname: string) => allUsedHostnames.add(hostname));
 
-      const label = group.placement?.label || group.spec?.placement?.label;
+      const label = group.placement?.label || (group.spec as any)?.placement?.label;
       if (label) {
         (hostList || []).forEach((host: Host) => {
           if (host.labels?.includes(label as string)) {
@@ -309,9 +309,9 @@ export class NvmeofGatewayNodeComponent implements OnInit, OnDestroy {
       this.hosts = [];
     } else {
       const placementHosts =
-        this.serviceSpec.placement?.hosts || this.serviceSpec.spec?.placement?.hosts || [];
+        this.serviceSpec.placement?.hosts || (this.serviceSpec.spec as any)?.placement?.hosts || [];
       const placementLabel =
-        this.serviceSpec.placement?.label || this.serviceSpec.spec?.placement?.label;
+        this.serviceSpec.placement?.label || (this.serviceSpec.spec as any)?.placement?.label;
 
       if (placementHosts.length > 0) {
         const currentGroupHosts = new Set<string>(placementHosts);

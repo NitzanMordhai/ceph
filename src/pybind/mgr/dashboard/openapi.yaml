@@ -9586,7 +9586,7 @@ paths:
                 serial_number:
                   description: Subsystem serial number
                   type: string
-                server_address:
+                traddr:
                   description: NVMeoF gateway address
                   type: string
               required:
@@ -9899,7 +9899,6 @@ paths:
       summary: Disallow hosts from accessing an NVMeoF subsystem
       tags:
       - NVMe-oF Subsystem Host Allowlist
-<<<<<<< HEAD
   /api/nvmeof/subsystem/{nqn}/host/{host_nqn}/change_controller_key:
     put:
       parameters:
@@ -9956,8 +9955,6 @@ paths:
       summary: Change host DH-HMAC-CHAP controller key
       tags:
       - NVMe-oF Subsystem Host Allowlist
-=======
->>>>>>> 77603435ca8 (mgr/dashboard: Fix nvmeof edit host key in subsystem resources page)
   /api/nvmeof/subsystem/{nqn}/host/{host_nqn}/change_key:
     put:
       parameters:
@@ -9984,8 +9981,7 @@ paths:
                 gw_group:
                   description: NVMeoF gateway group
                   type: string
-                server_address:
-                  description: NVMeoF gateway address
+                traddr:
                   type: string
               required:
               - dhchap_key
@@ -9993,21 +9989,13 @@ paths:
       responses:
         '200':
           content:
-            application/json:
-              schema:
-                type: object
             application/vnd.ceph.api.v1.0+json:
-              schema:
-                type: object
+              type: object
           description: Resource updated.
         '202':
           content:
-            application/json:
-              schema:
-                type: object
             application/vnd.ceph.api.v1.0+json:
-              schema:
-                type: object
+              type: object
           description: Operation is still executing. Please check the task queue.
         '400':
           description: Operation exception. Please check the response body for details.
@@ -10021,6 +10009,108 @@ paths:
       security:
       - jwt: []
       summary: Change host DH-HMAC-CHAP key
+      tags:
+      - NVMe-oF Subsystem Host Allowlist
+  /api/nvmeof/subsystem/{nqn}/host/{host_nqn}/del_controller_key:
+    put:
+      parameters:
+      - description: NVMeoF subsystem NQN
+        in: path
+        name: nqn
+        required: true
+        schema:
+          type: string
+      - description: NVMeoF host NQN.
+        in: path
+        name: host_nqn
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                gw_group:
+                  description: NVMeoF gateway group
+                  type: string
+                traddr:
+                  type: string
+              type: object
+      responses:
+        '200':
+          content:
+            application/vnd.ceph.api.v1.0+json:
+              type: object
+          description: Resource updated.
+        '202':
+          content:
+            application/vnd.ceph.api.v1.0+json:
+              type: object
+          description: Operation is still executing. Please check the task queue.
+        '400':
+          description: Operation exception. Please check the response body for details.
+        '401':
+          description: Unauthenticated access. Please login first.
+        '403':
+          description: Unauthorized access. Please check your permissions.
+        '500':
+          description: Unexpected error. Please check the response body for the stack
+            trace.
+      security:
+      - jwt: []
+      summary: Delete host DH-HMAC-CHAP controller key
+      tags:
+      - NVMe-oF Subsystem Host Allowlist
+  /api/nvmeof/subsystem/{nqn}/host/{host_nqn}/del_key:
+    put:
+      parameters:
+      - description: NVMeoF subsystem NQN
+        in: path
+        name: nqn
+        required: true
+        schema:
+          type: string
+      - description: NVMeoF host NQN.
+        in: path
+        name: host_nqn
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                gw_group:
+                  description: NVMeoF gateway group
+                  type: string
+                traddr:
+                  type: string
+              type: object
+      responses:
+        '200':
+          content:
+            application/vnd.ceph.api.v1.0+json:
+              type: object
+          description: Resource updated.
+        '202':
+          content:
+            application/vnd.ceph.api.v1.0+json:
+              type: object
+          description: Operation is still executing. Please check the task queue.
+        '400':
+          description: Operation exception. Please check the response body for details.
+        '401':
+          description: Unauthenticated access. Please login first.
+        '403':
+          description: Unauthorized access. Please check your permissions.
+        '500':
+          description: Unexpected error. Please check the response body for the stack
+            trace.
+      security:
+      - jwt: []
+      summary: Delete host DH-HMAC-CHAP key
       tags:
       - NVMe-oF Subsystem Host Allowlist
   /api/nvmeof/subsystem/{nqn}/listener:

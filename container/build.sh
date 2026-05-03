@@ -183,6 +183,16 @@ if [[ ${CI_CONTAINER} == "true" ]] ; then
         sha1_repo_tag=${repopath}:${CEPH_SHA1}-${fromtag}
     fi
 
+    # while we have more than just centos9 containers:
+    # anything that's not gets suffixed with its fromtag
+    # for the branch and sha1 tags (for example, <branch>-rocky-10).
+    # The default can change when it needs to.
+
+    if [[ "${fromtag}" != "centos-stream9" ]] ; then
+        branch_repo_tag=${repopath}:${BRANCH}-${fromtag}
+        sha1_repo_tag=${repopath}:${CEPH_SHA1}-${fromtag}
+    fi
+
     if [[ "${ARCH}" == "arm64" ]] ; then
         branch_repo_tag=${branch_repo_tag}-arm64
         sha1_repo_tag=${sha1_repo_tag}-arm64

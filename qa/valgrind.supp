@@ -578,6 +578,14 @@
         fun:(below main)
 }
 {
+        rocksdb mismatched free bluestore close
+        Memcheck:Free
+        fun:_ZdaPvmSt11align_val_t
+        fun:_ZN12RocksDBStore5closeEv
+        fun:_ZN12RocksDBStoreD*Ev
+        ...
+}
+{
 	libstdc++ leak on xenial
 	Memcheck:Leak
 	fun:malloc
@@ -862,6 +870,17 @@
    fun:*static_initialization_and_destruction*
    fun:_sub_I*
    ...
+}
+{
+   rocky10 still reachable rocksdb leak
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:_Znam
+   fun:UnknownInlinedFun
+   fun:_GLOBAL__sub_I_error_handler.cc.lto_priv.0
+   fun:_sub_I_65535_0.0
+   fun:__libc_start_main@@GLIBC_2.34
+   fun:(below main)
 }
 {
    rocksdb leak variation - ObjectLibrary PatternEntry

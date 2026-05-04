@@ -6259,9 +6259,21 @@ paths:
                       num_mons:
                         description: Number of monitors
                         type: integer
+                      quorum:
+                        description: List of monitors in quorum
+                        items:
+                          type: integer
+                        type: array
                     required:
                     - num_mons
+                    - quorum
                     type: object
+                  num_hosts:
+                    description: Count of hosts
+                    type: integer
+                  num_hosts_available:
+                    description: Count of available hosts
+                    type: integer
                   num_iscsi_gateways:
                     description: Iscsi gateways status
                     properties:
@@ -6325,12 +6337,16 @@ paths:
                           - count
                           type: object
                         type: array
+                      recovering_bytes_per_sec:
+                        description: Total recovery in bytes
+                        type: integer
                     required:
                     - pgs_by_state
                     - num_pools
                     - num_pgs
                     - bytes_used
                     - bytes_total
+                    - recovering_bytes_per_sec
                     type: object
                 required:
                 - fsid
@@ -6342,6 +6358,8 @@ paths:
                 - fsmap
                 - num_rgw_gateways
                 - num_iscsi_gateways
+                - num_hosts
+                - num_hosts_available
                 type: object
           description: OK
         '400':
@@ -14725,6 +14743,8 @@ paths:
                   type: string
                 realm_token:
                   type: string
+                tier_type:
+                  type: string
                 zone_name:
                   type: string
               required:
@@ -16616,6 +16636,11 @@ paths:
       - in: path
         name: storage_class
         required: true
+        schema:
+          type: string
+      - default: ''
+        in: query
+        name: zone_name
         schema:
           type: string
       responses:

@@ -165,7 +165,7 @@ export const ICON_TYPE = {
   arrowUpRight: ' arrow--up-right',
   inProgress: 'in-progress',
   arrowDown: 'arrow--down',
-  warning: 'warning',
+  warning: 'warning'
 } as const;
 
 export const EMPTY_STATE_IMAGE = {

@@ -120,6 +120,9 @@ import CheckMarkOutline16 from '@carbon/icons/es/checkmark--outline/16';
 import ArrowUpRight16 from '@carbon/icons/es/arrow--up-right/16';
 import InProgress16 from '@carbon/icons/es/in-progress/16';
 import ArrowDown16 from '@carbon/icons/es/arrow--down/16';
+import Warning16 from '@carbon/icons/es/warning/16';
+import Deploy16 from '@carbon/icons/es/deploy/16';
+import { SidebarLayoutComponent } from './sidebar-layout/sidebar-layout.component';
 
 @NgModule({
   imports: [
@@ -212,7 +215,8 @@ import ArrowDown16 from '@carbon/icons/es/arrow--down/16';
     IconComponent,
     TearsheetComponent,
     TearsheetStepComponent,
-    SidePanelComponent
+    SidePanelComponent,
+    SidebarLayoutComponent
   ],
   providers: [provideCharts(withDefaultRegisterables())],
   exports: [
@@ -255,7 +259,8 @@ import ArrowDown16 from '@carbon/icons/es/arrow--down/16';
     IconComponent,
     TearsheetComponent,
     TearsheetStepComponent,
-    SidePanelComponent
+    SidePanelComponent,
+    SidebarLayoutComponent
   ]
 })
 export class ComponentsModule {
@@ -286,7 +291,9 @@ export class ComponentsModule {
       CheckMarkOutline16,
       ArrowUpRight16,
       InProgress16,
-      ArrowDown16
+      ArrowDown16,
+      Deploy16,
+      Warning16
     ]);
   }
 }

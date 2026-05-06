@@ -140,7 +140,6 @@ export const ICON_TYPE = {
   danger: 'warning--filled',
   infoCircle: 'information--filled',
   success: 'checkmark--filled',
-  warning: 'warning--alt--filled',
   deploy: 'deploy',
   edit: 'edit',
   error: 'error--filled',
@@ -165,5 +164,11 @@ export const ICON_TYPE = {
   checkMarkOutline: 'checkmark--outline',
   arrowUpRight: ' arrow--up-right',
   inProgress: 'in-progress',
-  arrowDown: 'arrow--down'
+  arrowDown: 'arrow--down',
+  warning: 'warning'
+} as const;
+
+export const EMPTY_STATE_IMAGE = {
+  default: 'assets/empty-state.png',
+  search: 'assets/empty-state-search.png'
 } as const;

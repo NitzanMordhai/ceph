@@ -1,5 +1,6 @@
 @use '@carbon/layout';
 
+// PADDINGS
 .cds-p-0 {
   padding: 0;
 }
@@ -17,8 +18,12 @@
   margin: 0;
 }
 
-.cds-mr-3 {
-  margin-right: layout.$spacing-03;
+.cds-mb-0 {
+  margin-bottom: 0;
+}
+
+.cds-mb-1 {
+  margin-bottom: layout.$spacing-01;
 }
 
 .cds-mb-2 {
@@ -37,12 +42,16 @@
   margin-bottom: layout.$spacing-05;
 }
 
-.cds-mt-3 {
-  margin-top: layout.$spacing-03;
+.cds-mb-6 {
+  margin-bottom: layout.$spacing-06;
 }
 
 .cds-mt-1 {
   margin-top: layout.$spacing-01;
+}
+
+.cds-mt-3 {
+  margin-top: layout.$spacing-03;
 }
 
 .cds-mt-4 {

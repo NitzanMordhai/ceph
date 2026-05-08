@@ -16104,6 +16104,12 @@ paths:
                   type: boolean
                 secret_key:
                   type: string
+                sync_from:
+                  default: ''
+                  type: string
+                sync_from_all:
+                  default: ''
+                  type: string
                 tier_type:
                   default: ''
                   type: string
@@ -16476,6 +16482,12 @@ paths:
                   default: ''
                   type: string
                 storage_class:
+                  default: ''
+                  type: string
+                sync_from:
+                  default: ''
+                  type: string
+                sync_from_all:
                   default: ''
                   type: string
                 tier_type:

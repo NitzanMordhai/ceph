@@ -620,10 +620,16 @@ function test_auth()
   env CEPH_KEYRING=keyring1 ceph -n client.admin2 auth rotate client.admin2 >> keyring3
   # only the key has changed:
   diff -au keyring1 keyring3 | grep -E '^[-+][^-+]' | expect_false grep -v key
-  # the key in keyring1 no longer works:
-  expect_false env CEPH_KEYRING=keyring1 ceph -n client.admin2 auth get client.admin2
+  # BEFORE commit: old key must still be valid (pending_key):
+  expect_true env CEPH_KEYRING=keyring1 ceph -n client.admin2 auth get client.admin2
+  # BEFORE commit: new key must also work
+  expect_true env CEPH_KEYRING=keyring3 ceph -n client.admin2 auth get client.admin2
+  # explicitly commit the rotation — promotes pending_key→key, invalidates old key atomically
+  ceph auth commit-pending client.admin2
   # the key in keyring3 should work:
   expect_true env CEPH_KEYRING=keyring3 ceph -n client.admin2 auth get client.admin2
+  # the key in keyring1 no longer works:
+  expect_false env CEPH_KEYRING=keyring1 ceph -n client.admin2 auth get client.admin2
   # now verify the key from `auth get` matches what rotate produced:
   expect_true ceph auth get client.admin2 >> keyring4
   expect_true diff -au keyring3 keyring4

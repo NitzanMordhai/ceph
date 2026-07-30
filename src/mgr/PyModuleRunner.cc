@@ -16,6 +16,9 @@
 // Python.h comes first because otherwise it clobbers ceph's assert
 #include <Python.h>
 
+#include <future>
+#include <thread>
+
 #include "PyModule.h"
 
 #include "common/debug.h"
@@ -80,25 +83,72 @@ int PyModuleRunner::serve()
   return r;
 }
 
-void PyModuleRunner::shutdown()
+PyModuleRunner::ShutdownResult PyModuleRunner::shutdown()
 {
   ceph_assert(pClassInstance != nullptr);
+  auto timeout = std::chrono::seconds(
+      g_conf().get_val<int64_t>("mgr_module_shutdown_timeout"));
 
-  Gil gil(py_module->pMyThreadState, true);
+  // The task owns its own result (returned by value) rather than writing
+  // through references to this function's locals: on TIMEOUT this
+  // function returns while the detached task is still running, so
+  // anything it wrote into our stack frame would be a dangling reference
+  // -- the same class of bug this whole redesign exists to avoid for
+  // pClassInstance.
+  struct Result {
+    bool ok;
+    std::string exc_msg;
+  };
+  // std::async's future has a blocking destructor if it's the last
+  // reference to the shared state -- timing out and letting it go out of
+  // scope would silently re-introduce the hang we're bounding. Use
+  // packaged_task + a manually detached thread instead; that future has
+  // ordinary, non-blocking destructor semantics.
+  std::packaged_task<Result()> task([this] {
+    Result r{true, {}};
+    {
+      Gil gil(py_module->pMyThreadState, true);
+      auto pValue = PyObject_CallMethod(pClassInstance,
+          const_cast<char*>("shutdown"), nullptr);
+      if (pValue != nullptr) {
+        Py_DECREF(pValue);
+      } else {
+        r.exc_msg = peek_pyerror();
+        derr << get_name() << ".shutdown:" << dendl;
+        derr << handle_pyerror(true, get_name(), "PyModuleRunner::shutdown") << dendl;
+        r.ok = false;
+      }
+    }
+    // Bound the join together with the call: serve()'s thread can't
+    // return until shutdown() does, so joining it here, inside the same
+    // background task, means one timeout covers both steps.
+    thread.join();
+    return r;
+  });
+  auto fut = task.get_future();
+  std::thread(std::move(task)).detach();
 
-  auto pValue = PyObject_CallMethod(pClassInstance,
-      const_cast<char*>("shutdown"), nullptr);
+  if (fut.wait_for(timeout) == std::future_status::timeout) {
+    derr << "shutdown() on " << get_name() << " timed out after "
+         << timeout.count() << "s" << dendl;
+    py_module->fail("shutdown() timed out after " +
+                     std::to_string(timeout.count()) + "s");
+    dead = true;
+    // Caller MUST NOT destruct `this` normally now -- the detached task
+    // (call + join) is still running in the background, referencing
+    // pClassInstance. Caller is responsible for leaking `this` instead.
+    return ShutdownResult::TIMEOUT;
+  }
 
-  if (pValue != NULL) {
-    Py_DECREF(pValue);
-  } else {
-    derr << "Failed to invoke shutdown() on " << get_name() << dendl;
-    derr << handle_pyerror(true, get_name(), "PyModuleRunner::shutdown") << dendl;
+  Result r = fut.get();
+  if (!r.ok) {
+    py_module->fail(r.exc_msg);
   }
   if (py_module->perfcounter) {
     py_module->perfcounter->set(py_module->l_pym_alive, 0);
   }
   dead = true;
+  return r.ok ? ShutdownResult::OK : ShutdownResult::EXCEPTION;
 }
 
 void PyModuleRunner::log(const std::string &record)

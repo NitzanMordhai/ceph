@@ -1,10 +1,11 @@
 
-from mgr_module import MgrModule, CommandResult, HandleCommandResult, Option
+from mgr_module import MgrModule, MgrStandbyModule, CommandResult, HandleCommandResult, Option
 import enum
 import json
 import random
 import sys
 import threading
+import time
 from code import InteractiveInterpreter
 from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
@@ -33,6 +34,11 @@ class Module(MgrModule):
     activities in its serve() thread.
     """
 
+    # Needed so notify() actually gets called (see should_notify() /
+    # ActivePyModules::notify_all(), which filter on this) -- the qa test
+    # for notify() failure handling triggers an osd map change.
+    NOTIFY_TYPES = ['osd_map']
+
     # The test code in qa/ relies on these options existing -- they
     # are of course not really used for anything in the module
     MODULE_OPTIONS = [
@@ -59,6 +65,13 @@ class Module(MgrModule):
                type='int',
                min=1,
                max=42),
+        # Synthetic-failure controls, for testing module failure handling
+        # (see tracker #78786). Read live via get_module_option() -- no
+        # arming/disarming machinery beyond setting these.
+        Option(name='notify_throw', type='bool', default=False),
+        Option(name='config_notify_throw', type='bool', default=False),
+        Option(name='shutdown_throw', type='bool', default=False),
+        Option(name='standby_shutdown_hang', type='bool', default=False),
     ]
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -208,6 +221,21 @@ class Module(MgrModule):
         '''
         self.remote("insights", "testing_set_now_time_offset", hours)
         return 0, "", ""
+
+    @SelftestCLICommand('mgr self-test command throw')
+    def command_throw(self) -> Tuple[int, str, str]:
+        '''
+        Unconditionally throw from a command handler
+        '''
+        raise RuntimeError("Synthetic exception in handle_command")
+
+    def notify(self, notify_type: str, notify_id: str) -> None:
+        if self.get_module_option('notify_throw'):
+            raise RuntimeError("Synthetic exception in notify")
+
+    def config_notify(self) -> None:
+        if self.get_module_option('config_notify_throw'):
+            raise RuntimeError("Synthetic exception in config_notify")
 
     def _self_test(self) -> None:
         self.log.info("Running self-test procedure...")
@@ -636,3 +664,29 @@ class Module(MgrModule):
                 self.log.info("Waiting for workload request...")
                 self._event.wait()
                 self._event.clear()
+
+
+class StandbyModule(MgrStandbyModule):
+    MODULE_OPTIONS = Module.MODULE_OPTIONS
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super(StandbyModule, self).__init__(*args, **kwargs)
+        self._shutdown_event = threading.Event()
+
+    def serve(self) -> None:
+        self._shutdown_event.wait()
+        self._shutdown_event.clear()
+
+    def shutdown(self) -> None:
+        # Set the event *before* any hang/throw below: PyModuleRunner::
+        # shutdown() joins this module's serve()-thread as part of the
+        # same bounded operation as this call, so serve() must be free to
+        # exit regardless of what shutdown() does next -- otherwise the
+        # throw case would also stall the join, for a reason unrelated to
+        # what that test is actually checking.
+        self._shutdown_event.set()
+        if self.get_module_option('standby_shutdown_hang'):
+            self.log.info("Synthetic hang in standby shutdown")
+            time.sleep(3600)  # far past any configured mgr_module_shutdown_timeout
+        if self.get_module_option('shutdown_throw'):
+            raise RuntimeError("Synthetic exception in shutdown")

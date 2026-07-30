@@ -44,32 +44,36 @@ StandbyPyModules::StandbyPyModules(
 }
 
 // FIXME: completely identical to ActivePyModules
-void StandbyPyModules::shutdown()
+std::vector<std::unique_ptr<StandbyPyModule>> StandbyPyModules::shutdown()
 {
   std::lock_guard locker(lock);
+  std::vector<std::unique_ptr<StandbyPyModule>> abandoned;
 
-  // Signal modules to drop out of serve() and/or tear down resources
-  for (auto &i : modules) {
-    auto module = i.second.get();
-    const auto& name = i.first;
+  // Signal modules to drop out of serve() and/or tear down resources.
+  // module->shutdown() bounds both the shutdown() call and joining the
+  // serve()-thread together (see PyModuleRunner::shutdown()) -- if it
+  // times out, the module is abandoned rather than destructed, since its
+  // background call+join may still be running and referencing it.
+  for (auto it = modules.begin(); it != modules.end(); ) {
+    const auto& name = it->first;
     dout(10) << "waiting for module " << name << " to shutdown" << dendl;
     lock.unlock();
-    module->shutdown();
+    auto result = it->second->shutdown();
     lock.lock();
-    dout(10) << "module " << name << " shutdown" << dendl;
+    if (result == PyModuleRunner::ShutdownResult::TIMEOUT) {
+      derr << "module " << name << " shutdown() timed out; abandoning it"
+           << dendl;
+      abandoned.push_back(std::move(it->second));
+      it = modules.erase(it);
+    } else {
+      dout(10) << "module " << name << " shutdown" << dendl;
+      ++it;
+    }
   }
 
-  // For modules implementing serve(), finish the threads where we
-  // were running that.
-  for (auto &i : modules) {
-    lock.unlock();
-    dout(10) << "joining thread for module " << i.first << dendl;
-    i.second->thread.join();
-    dout(10) << "joined thread for module " << i.first << dendl;
-    lock.lock();
-  }
-
-  modules.clear();
+  modules.clear();  // only the OK/EXCEPTION ones remain -- already
+                     // joined inside shutdown(), safe to destruct here.
+  return abandoned;
 }
 
 void StandbyPyModules::start_one(PyModuleRef py_module)

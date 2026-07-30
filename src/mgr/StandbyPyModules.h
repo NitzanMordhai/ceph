@@ -16,6 +16,7 @@
 
 #include <string>
 #include <map>
+#include <vector>
 
 #include <Python.h>
 
@@ -124,7 +125,10 @@ public:
 
   void start_one(PyModuleRef py_module);
 
-  void shutdown();
+  // Returns modules whose shutdown() timed out -- the caller must not
+  // destruct these normally (see PyModuleRunner::shutdown()), and is
+  // responsible for keeping them alive forever instead.
+  std::vector<std::unique_ptr<StandbyPyModule>> shutdown();
 
   void handle_mgr_map(const MgrMap &mgr_map)
   {

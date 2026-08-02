@@ -34,6 +34,10 @@ class Module(MgrModule):
     activities in its serve() thread.
     """
 
+    # notify() is only called for types listed here -- osd_map lets
+    # test_notify_failure trigger it via a plain "ceph osd set noout".
+    NOTIFY_TYPES = [NotifyType.osd_map]
+
     # The test code in qa/ relies on these options existing -- they
     # are of course not really used for anything in the module
     MODULE_OPTIONS = [

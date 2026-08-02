@@ -304,8 +304,18 @@ class TestModuleSelftest(MgrTestCase):
         self._load_module("selftest")
         self.mgr_cluster.set_module_conf("selftest", "notify_throw", "true")
 
-        # Any notification will do -- an OSD map change is one the suite
-        # already causes elsewhere.
+        # set_module_conf only returns once the mon has the new value --
+        # it still needs to propagate mon->mgr before the running module
+        # will see it (see test_selftest_config_update above), which is
+        # a separate race from the notify() we're about to trigger below.
+        def notify_throw_armed():
+            val = self.mgr_cluster.mon_manager.raw_cluster_cmd(
+                "mgr", "self-test", "config", "get", "notify_throw").strip()
+            return val == "True"
+        self.wait_until_true(notify_throw_armed, timeout=30)
+
+        # Any notification the module is registered for will do -- an OSD
+        # map change is one the suite already causes elsewhere.
         self.mgr_cluster.mon_manager.raw_cluster_cmd("osd", "set", "noout")
 
         self.wait_for_health(

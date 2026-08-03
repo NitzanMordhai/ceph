@@ -315,12 +315,19 @@ class TestModuleSelftest(MgrTestCase):
         self.wait_until_true(notify_throw_armed, timeout=30)
 
         # Any notification the module is registered for will do -- an OSD
-        # map change is one the suite already causes elsewhere.
+        # map change is one the suite already causes elsewhere. Always
+        # unset it again: it's cluster-wide state that outlives this test
+        # and will fail wait_for_health_clear() in unrelated later tests
+        # otherwise (setup_mgrs() between tests restarts daemons, but
+        # doesn't touch OSD flags).
         self.mgr_cluster.mon_manager.raw_cluster_cmd("osd", "set", "noout")
-
-        self.wait_for_health(
-            "Module 'selftest' has failed: Synthetic exception in notify",
-            timeout=30)
+        try:
+            self.wait_for_health(
+                "Module 'selftest' has failed: Synthetic exception in notify",
+                timeout=30)
+        finally:
+            self.mgr_cluster.mon_manager.raw_cluster_cmd(
+                "osd", "unset", "noout")
 
         self.mgr_cluster.mon_manager.raw_cluster_cmd("crash", "prune", "0")
 

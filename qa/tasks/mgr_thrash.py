@@ -85,6 +85,15 @@ class MgrThrasher(Thrasher):
                          module_load_delay_ms. Defaults to the first
                          entry of selftest_modules, or 'devicehealth'
                          if that's empty.
+    check_balancer        Turn the balancer module on up front, then
+                         after every iteration assert it's still
+                         active -- checks that module *state* (not
+                         just its code) survives failover. (default:
+                         False)
+    check_admin_socket    After every iteration, 'tell' the current
+                         active mgr to perf dump, to catch a hung or
+                         unresponsive admin socket on the mgr that
+                         just took over. (default: True)
 
     For example::
 
@@ -142,6 +151,8 @@ class MgrThrasher(Thrasher):
         self.module_load_delay_name = self.config.get(
             'module_load_delay_name',
             self.selftest_modules[0] if self.selftest_modules else 'devicehealth')
+        self.check_balancer = self.config.get('check_balancer', False)
+        self.check_admin_socket = self.config.get('check_admin_socket', True)
 
         assert self.max_killable() > 0, \
             'Unable to kill at least one manager with the current config.'
@@ -169,6 +180,10 @@ class MgrThrasher(Thrasher):
             self.log('injecting {d}ms load delay into mgr module {m} on '
                       'every startup'.format(d=self.module_load_delay_ms,
                                               m=self.module_load_delay_name))
+
+        if self.check_balancer:
+            self.manager.raw_cluster_cmd('balancer', 'on')
+            self.log('balancer turned on, will check it stays active')
 
         self.thread = gevent.spawn(self.do_thrash)
 
@@ -337,6 +352,29 @@ class MgrThrasher(Thrasher):
         self.log('running mgr self-test remote (remote() dispatch)')
         self.manager.raw_cluster_cmd('mgr', 'self-test', 'remote')
 
+    def _check_balancer_active(self):
+        """
+        Assert the balancer module is still reporting itself active.
+        Checks that the module's own state survived thrashing, not
+        just that its code still runs (which self-test would show).
+        """
+        status = json.loads(self.manager.raw_cluster_cmd(
+            'balancer', 'status', '--format=json-pretty'))
+        assert status['active'], \
+            'balancer is not active after thrashing: {s}'.format(s=status)
+
+    def _check_admin_socket(self):
+        """
+        Tell the current active mgr to perf dump, to catch a hung or
+        unresponsive admin socket on whichever mgr just took over.
+        """
+        active = self.manager.get_mgr_dump()['active_name']
+        if not active:
+            return
+        out = self.manager.raw_cluster_cmd(
+            'tell', 'mgr.{a}'.format(a=active), 'perf dump')
+        json.loads(out)
+
     def _validate_modules(self):
         if self.check_enabled_modules:
             self._check_enabled_modules()
@@ -344,6 +382,10 @@ class MgrThrasher(Thrasher):
             self._run_module_selftests()
         if self.test_remote_dispatch:
             self._run_remote_dispatch_selftest()
+        if self.check_balancer:
+            self._check_balancer_active()
+        if self.check_admin_socket:
+            self._check_admin_socket()
 
     def do_thrash(self):
         """

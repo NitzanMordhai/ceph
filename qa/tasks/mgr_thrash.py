@@ -91,9 +91,9 @@ class MgrThrasher(Thrasher):
                          just its code) survives failover. (default:
                          False)
     check_admin_socket    After every iteration, 'tell' the current
-                         active mgr to perf dump, to catch a hung or
-                         unresponsive admin socket on the mgr that
-                         just took over. (default: True)
+                         active mgr to report its version, to catch a
+                         hung or unresponsive command interface on the
+                         mgr that just took over. (default: True)
 
     For example::
 
@@ -365,14 +365,16 @@ class MgrThrasher(Thrasher):
 
     def _check_admin_socket(self):
         """
-        Tell the current active mgr to perf dump, to catch a hung or
-        unresponsive admin socket on whichever mgr just took over.
+        Tell the current active mgr to report its version, to catch a
+        hung or unresponsive mgr command interface on whichever mgr
+        just took over. 'perf dump' isn't valid over tell for mgr (only
+        the generic admin_socket commands like 'version' are).
         """
         active = self.manager.get_mgr_dump()['active_name']
         if not active:
             return
         out = self.manager.raw_cluster_cmd(
-            'tell', 'mgr.{a}'.format(a=active), 'perf dump')
+            'tell', 'mgr.{a}'.format(a=active), 'version')
         json.loads(out)
 
     def _validate_modules(self):

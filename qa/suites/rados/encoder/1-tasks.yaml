@@ -1,44 +1,53 @@
+teuthology:
+  postmerge:
+    - |
+      -- skip squid install+dencoder on rocky - squid packages not available
+      if yaml.os_type == 'rocky' then
+        yaml.squid_tasks = yaml_load([=[sequential: []]=])
+      end
+
+squid_tasks:
+  sequential:
+    - print: "**** installing N-2 version (squid) ****"
+    - install:
+        branch: squid
+        exclude_packages:
+          - ceph-volume
+          - ceph-osd-classic
+          - ceph-osd-crimson
+    - print: "**** start dencoder squid... ****"
+    - workunit:
+        clients:
+          client.0:
+            - dencoder/test-dencoder.sh
+    - print: "**** done dencoder squid ****"
+
 tasks:
-- print: "**** installing N-2 version (squid) ****"
-- install:
-    branch: squid
-    exclude_packages:
-      - ceph-volume
-      - ceph-osd-classic
-      - ceph-osd-crimson
-- print: "**** done end installing task..."
+- sequential:
+    - squid_tasks
 
-- print: "**** start dencoder squid... ****"
-- workunit:
-    clients:
-      client.0:
-        - dencoder/test-dencoder.sh
-- print: "**** done end dencoder squid... ****"
-
-- print: "**** installing N-1 version (Tentacle) ****"
+- print: "**** installing N-1 version (tentacle) ****"
 - install:
     branch: tentacle
     exclude_packages:
       - ceph-volume
       - ceph-osd-classic
-- print: "**** done end installing task..."
 - print: "**** start dencoder tentacle... ****"
 - workunit:
     clients:
       client.0:
         - dencoder/test-dencoder.sh
-- print: "**** done end dencoder tentacle... ****"
+- print: "**** done dencoder tentacle ****"
 
-- print: "**** installing N version (Umbrella) ****"
+- print: "**** installing N version (umbrella) ****"
 - install:
     branch: umbrella
     exclude_packages:
       - ceph-volume
       - ceph-osd-classic
-- print: "**** done end installing task..."
 - print: "**** start dencoder umbrella... ****"
 - workunit:
     clients:
       client.0:
         - dencoder/test-dencoder.sh
-- print: "**** done end dencoder umbrella... ****"
+- print: "**** done dencoder umbrella ****"

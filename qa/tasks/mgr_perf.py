@@ -192,6 +192,25 @@ class MgrPerf(Task):
 
     # ------------------------------------------------------------- the sampler
 
+    def _effective_config(self, mgr_id):
+        """
+        Ask the daemon, not the config store.
+
+        'ceph config get' returns what the mon has, which is the default
+        for anything set only in ceph.conf -- and startup options such as
+        mgr_subinterpreter_modules are set exactly that way. Recording the
+        daemon's own value is what makes a comparison between two jobs
+        self-documenting.
+        """
+        out = {}
+        for key in ('mgr_subinterpreter_modules', 'mgr_module_path',
+                    'mgr_tick_period', 'mgr_module_monitor_interval',
+                    'mgr_map_cache_enabled'):
+            value = self._tell(mgr_id, 'config', 'get', key)
+            if isinstance(value, dict):
+                out.update(value)
+        return out
+
     def _sample_once(self, started_at):
         mgr_id = self._active_mgr()
         if not mgr_id:
@@ -370,6 +389,7 @@ class MgrPerf(Task):
             'window_seconds': span,
             'interval': self.interval,
             'mgr_failovers': len({s['mgr'] for s in useful}) - 1,
+            'effective_config': self._effective_config(last['mgr']),
         }
 
         if self.want_proc and span > 0 and same_mgr \
@@ -485,6 +505,8 @@ class MgrPerf(Task):
         lines = ['ceph-mgr cost over %s samples, %.0fs window'
                  % (summary.get('samples', 0),
                     summary.get('window_seconds', 0))]
+        for key, value in sorted(summary.get('effective_config', {}).items()):
+            lines.append('  %-22s %r' % (key, value))
         for key in ('mgr_cpu_cores', 'mgr_rss_mb', 'mgr_rss_mb_max',
                     'mgr_rss_mb_growth', 'collect_total_ms', 'mgr_failovers'):
             if key in summary:

@@ -1,9 +1,15 @@
+# Measure ceph-mgr cost with every module, prometheus included, running
+# in the main interpreter. Results land in the job archive under
+# mgr_perf/, and each summary records the mgr's own effective config.
 overrides:
   ceph:
     log-ignorelist:
       - \(POOL_APP_NOT_ENABLED\)
       - \(PG_
       - overall HEALTH
+    conf:
+      mgr:
+        mgr_subinterpreter_modules: ""
 tasks:
   - exec:
       client.0:
@@ -12,7 +18,7 @@ tasks:
   - mgr_perf:
       interval: 30
       warmup: 120
-      # no thresholds here: collect data, never fail the job
+      # no thresholds: collect data, never fail the job
   - radosbench:
       clients: [client.0]
       pool: mgrperf

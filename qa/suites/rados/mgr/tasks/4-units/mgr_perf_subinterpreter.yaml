@@ -1,0 +1,33 @@
+# Measure ceph-mgr cost with prometheus loaded into its own
+# subinterpreter. Results land in the job archive under mgr_perf/, and
+# each summary records the mgr's own effective config.
+#
+# Py_NewInterpreter() shares the process GIL, so this buys isolation
+# rather than parallelism. Two hazards come with it: PyGILState_Check()
+# returns 1 everywhere once any subinterpreter exists, which disables the
+# guards in MgrMapCache, and the api cache hands PyObject* between
+# interpreters because it is keyed by name alone. A failure in this job is
+# a result worth reading, not a flake to be retried.
+overrides:
+  ceph:
+    log-ignorelist:
+      - \(POOL_APP_NOT_ENABLED\)
+      - \(PG_
+      - overall HEALTH
+    conf:
+      mgr:
+        mgr_subinterpreter_modules: "prometheus"
+tasks:
+  - exec:
+      client.0:
+        - ceph osd pool create mgrperf 256 256 --autoscale-mode=off
+        - ceph osd pool application enable mgrperf rados
+  - mgr_perf:
+      interval: 30
+      warmup: 120
+  - radosbench:
+      clients: [client.0]
+      pool: mgrperf
+      create_pool: false
+      time: 900
+      size: 4096

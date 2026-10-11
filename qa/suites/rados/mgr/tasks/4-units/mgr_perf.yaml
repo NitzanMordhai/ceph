@@ -1,0 +1,21 @@
+overrides:
+  ceph:
+    log-ignorelist:
+      - \(POOL_APP_NOT_ENABLED\)
+      - \(PG_
+      - overall HEALTH
+tasks:
+  - exec:
+      client.0:
+        - ceph osd pool create mgrperf 256 256 --autoscale-mode=off
+        - ceph osd pool application enable mgrperf rados
+  - mgr_perf:
+      interval: 30
+      warmup: 120
+      # no thresholds here: collect data, never fail the job
+  - radosbench:
+      clients: [client.0]
+      pool: mgrperf
+      create_pool: false
+      time: 900
+      size: 4096

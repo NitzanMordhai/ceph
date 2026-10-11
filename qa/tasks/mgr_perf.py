@@ -201,16 +201,41 @@ class MgrPerf(Task):
                 continue
         return out or None
 
+    @staticmethod
+    def _find_mgr_pid(remote, mgr_id):
+        """
+        The pid of this mgr, matched on name and then on '-i <id>'.
+
+        'pgrep -f <pattern>' is the obvious call and the wrong one: the
+        shell running it has that very pattern in its own command line, so
+        it matches itself and the first pid returned is a process with no
+        CPU at all. Matching the process name with -x cannot do that, and
+        -a gives the command line needed to tell several mgrs apart.
+        """
+        try:
+            listing = remote.sh(['pgrep', '-a', '-x', 'ceph-mgr'])
+        except CommandFailedError:
+            return None
+        for line in listing.splitlines():
+            pid, _, cmdline = line.partition(' ')
+            args = cmdline.split()
+            for i, arg in enumerate(args):
+                if arg == '-i' and i + 1 < len(args) and args[i + 1] == mgr_id:
+                    return pid.strip()
+                if arg == '-i%s' % mgr_id or arg == '--id=%s' % mgr_id:
+                    return pid.strip()
+        return None
+
     def _proc_cpu_seconds(self, remote, mgr_id):
         """Total mgr CPU seconds. No perf counter exposes this."""
         if remote is None:
             return None
         try:
-            pids = remote.sh(['pgrep', '-f',
-                              'ceph-mgr.*-i[ =]*%s' % mgr_id]).split()
-            if not pids:
+            pid = self._find_mgr_pid(remote, mgr_id)
+            if not pid:
+                log.warning('mgr_perf: no ceph-mgr process for id %s', mgr_id)
                 return None
-            stat = remote.sh(['cat', '/proc/%s/stat' % pids[0]])
+            stat = remote.sh(['cat', '/proc/%s/stat' % pid])
             fields = stat[stat.rindex(')') + 2:].split()
             ticks = int(fields[PROC_UTIME]) + int(fields[PROC_STIME])
             hz = int(remote.sh(['getconf', 'CLK_TCK']).strip() or 100)

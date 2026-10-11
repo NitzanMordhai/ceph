@@ -101,6 +101,7 @@ class MgrPerf(Task):
         self._stop = threading.Event()
         self._thread = None
         self._prom_url = None
+        self._prom_mgr = None
         self._failures = []
 
     # ---------------------------------------------------------------- helpers
@@ -128,14 +129,42 @@ class MgrPerf(Task):
                         mgr_id, ' '.join(args), e)
             return None
 
+    def _mgr_ids(self):
+        dump = self._ceph_json('mgr', 'dump')
+        ids = [dump['active_name']] if dump.get('active_name') else []
+        ids += [s['name'] for s in dump.get('standbys', []) if s.get('name')]
+        return ids
+
+    def _assign_ports(self, min_port=7789):
+        """
+        Give every mgr its own prometheus port.
+
+        The standby module serves too, and clusters/2-node-mgr.yaml puts
+        two mgrs on one host, so leaving them all on the default port
+        means the second standby cannot bind and the module falls over.
+        get_localized_module_option() reads mgr/prometheus/<id>/server_port
+        ahead of the global one, which is how the mgr test cases handle
+        the same problem.
+        """
+        for offset, mgr_id in enumerate(self._mgr_ids()):
+            port = min_port + offset
+            log.info('mgr_perf: prometheus port %s for mgr.%s', port, mgr_id)
+            self._ceph('config', 'set', 'mgr',
+                       'mgr/prometheus/%s/server_port' % mgr_id, str(port))
+
     def _enable_prometheus(self):
-        """Turn the module on if it isn't already, and find its URL."""
+        """Give each mgr its own port, turn the module on, find its URL."""
         try:
             enabled = self._ceph_json('mgr', 'module', 'ls').get(
                 'enabled_modules', [])
-            if 'prometheus' not in enabled:
-                log.info('mgr_perf: enabling the prometheus module')
-                self._ceph('mgr', 'module', 'enable', 'prometheus')
+            self._assign_ports()
+            if 'prometheus' in enabled:
+                # it is already serving on the old port, so bounce it to
+                # pick up the one just assigned
+                log.info('mgr_perf: restarting prometheus for the new ports')
+                self._ceph('mgr', 'module', 'disable', 'prometheus')
+                time.sleep(5)
+            self._ceph('mgr', 'module', 'enable', 'prometheus')
             # the module needs a moment to bind and serve a first scrape
             for _ in range(60):
                 url = self._ceph_json('mgr', 'services').get('prometheus')
@@ -143,7 +172,7 @@ class MgrPerf(Task):
                     return url.rstrip('/') + '/metrics'
                 time.sleep(5)
             log.warning('mgr_perf: prometheus never published a service URL')
-        except (CommandFailedError, ValueError) as e:
+        except (CommandFailedError, ValueError, KeyError) as e:
             log.warning('mgr_perf: could not set up prometheus: %s', e)
         return None
 
@@ -224,6 +253,17 @@ class MgrPerf(Task):
             sample['mempool'] = self._tell(mgr_id, 'dump_mempools')
         remote = self._mgr_remote(mgr_id)
         if self.want_prometheus:
+            # the URL belongs to whichever mgr is active, and each one has
+            # its own port, so re-resolve it when the active mgr moves
+            if mgr_id != self._prom_mgr:
+                try:
+                    url = self._ceph_json('mgr', 'services').get('prometheus')
+                    self._prom_url = url.rstrip('/') + '/metrics' if url else None
+                    self._prom_mgr = mgr_id
+                    log.info('mgr_perf: prometheus url now %s (mgr.%s)',
+                             self._prom_url, mgr_id)
+                except (CommandFailedError, ValueError) as e:
+                    log.warning('mgr_perf: could not re-resolve the url: %s', e)
             sample['collect'] = self._scrape_prometheus(remote)
         if self.want_proc:
             sample['cpu_seconds'] = self._proc_cpu_seconds(remote, mgr_id)
@@ -542,7 +582,9 @@ class MgrPerf(Task):
         super(MgrPerf, self).begin()
         if self.want_prometheus:
             self._prom_url = self._enable_prometheus()
-            log.info('mgr_perf: prometheus url %s', self._prom_url)
+            self._prom_mgr = self._active_mgr()
+            log.info('mgr_perf: prometheus url %s (mgr.%s)',
+                     self._prom_url, self._prom_mgr)
         log.info('mgr_perf: sampling every %ss, discarding the first %ss',
                  self.interval, self.warmup)
         self._thread = threading.Thread(target=self._run)

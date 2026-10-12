@@ -1,0 +1,27 @@
+# prometheus loaded into its own subinterpreter.
+#
+# Py_NewInterpreter() shares the process GIL, so this buys isolation
+# rather than parallelism. PyGILState_Check() also starts returning 1
+# everywhere once any subinterpreter exists, which disables the guards
+# in MgrMapCache, and the api cache hands PyObject* between interpreters
+# because it is keyed by name alone. A failure here is a result worth
+# reading, not a flake to be retried.
+overrides:
+  ceph:
+    conf:
+      mgr:
+        mgr_subinterpreter_modules: "prometheus"
+tasks:
+  - exec:
+      client.0:
+        - ceph osd pool create mgrperf 256 256 --autoscale-mode=off
+        - ceph osd pool application enable mgrperf rados
+  - mgr_perf:
+      interval: 30
+      warmup: 120
+  - radosbench:
+      clients: [client.0]
+      pool: mgrperf
+      create_pool: false
+      time: 900
+      size: 4096

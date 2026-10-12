@@ -1,0 +1,7 @@
+# The default stats load: one small pool, perf counters left off as they
+# are in a normal deployment, since ceph-exporter collects them.
+tasks:
+  - exec:
+      client.0:
+        - ceph osd pool create mgrperf 256 256 --autoscale-mode=off
+        - ceph osd pool application enable mgrperf rados

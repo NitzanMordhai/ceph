@@ -12,10 +12,6 @@ overrides:
       mgr:
         mgr_subinterpreter_modules: "prometheus"
 tasks:
-  - exec:
-      client.0:
-        - ceph osd pool create mgrperf 256 256 --autoscale-mode=off
-        - ceph osd pool application enable mgrperf rados
   - mgr_perf:
       interval: 30
       warmup: 120

@@ -1,0 +1,25 @@
+# Stress the stats path instead of the cluster.
+#
+# The light case leaves prometheus with almost nothing to do: ~2 ms of
+# collect every 15 s, a duty cycle of 0.014%. That is far too little to
+# say anything about contention between modules, and it never runs
+# get_perf_counters at all, because exclude_perf_counters defaults to
+# true. This facet turns on the path whose own option description says
+# it "can degrade ceph-mgr performance, especially in large clusters",
+# and gives pg_dump and pg_summary a PG count worth walking.
+#
+# 2048 PGs is what fits: at the default pool size of 3 on four OSDs that
+# is 1536 PG replicas per OSD, just under the limit raised below. 4096
+# would need 3072 per OSD and the pool would be refused.
+overrides:
+  ceph:
+    conf:
+      global:
+        mon max pg per osd: 2000
+tasks:
+  - exec:
+      client.0:
+        - ceph osd pool create mgrperf 2048 2048 --autoscale-mode=off
+        - ceph osd pool application enable mgrperf rados
+        - ceph config set mgr mgr/prometheus/exclude_perf_counters false
+        - ceph config set mgr mgr/prometheus/rbd_stats_pools mgrperf
